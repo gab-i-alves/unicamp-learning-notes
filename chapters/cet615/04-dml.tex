@@ -1,0 +1,486 @@
+\setchapterpreamble[u]{\margintoc}
+\chapter{T-SQL: Manipulação de Dados (DML)}
+\labch{cet615-dml}
+
+Este capítulo cobre a primeira metade da segunda
+aula\sidecite{BaiocoCET615}: inserir, alterar e excluir dados; consultar
+com filtros, agrupamentos, junções e subconsultas; e agrupar operações em
+transações. Os exemplos de consulta da aula usam o banco PUBS, de
+exemplo da Microsoft. Aqui os exemplos usam o banco de biblioteca do
+\refch{cet615-ddl}.
+
+\section{Inserir, alterar e excluir}
+
+\subsection{\texttt{insert}}
+
+\begin{lstlisting}
+-- sem lista de colunas: todos os valores, na ordem da tabela
+insert into leitor values (1, 'Ana Lima', null, 'Campinas')
+
+-- com lista de colunas: as omitidas recebem nulo ou o default
+insert into leitor (codleitor, nome) values (2, 'Bruno Reis')
+
+-- várias linhas no mesmo comando
+insert into leitor (codleitor, nome)
+values (3, 'Carla Dias'), (4, 'Davi Rocha')
+
+-- resultado de uma consulta
+insert into leitor_vip (codleitor, nome)
+select codleitor, nome from leitor where cidade = 'Campinas'
+\end{lstlisting}
+
+Texto e data vão entre aspas; número, não. \texttt{null} é um valor
+especial que significa ``não informado'': não é branco nem zero. Gravar
+\texttt{''} ou \texttt{0} grava exatamente isso. No \texttt{insert} sem
+lista de colunas, o nulo precisa ser escrito na posição da coluna.
+
+Duas observações da aula\sidecite{BaiocoCET615Aulas}: o \texttt{insert}
+com várias linhas tem o mesmo resultado de vários \texttt{insert}, mas
+roda como uma única transação; e o \texttt{insert ... select} serve, por
+exemplo, para montar uma tabela desnormalizada para consulta rápida ou
+para uma ferramenta de BI.
+
+\subsection{\texttt{update} e \texttt{delete}}
+
+\begin{lstlisting}
+update livro set titulo = 'Dom Casmurro' where codlivro = 10
+update exemplar set estado = 'U', codlivro = 11 where codexemplar = 5
+update livro set preco = preco * 1.1        -- todas as linhas!
+
+delete from emprestimo where codemprestimo = 100
+delete emprestimo                            -- o from é opcional
+\end{lstlisting}
+
+O \texttt{where} é ``quase obrigatório'': sem ele, o comando atinge todas
+as linhas. Filtrar pela chave garante uma linha só; filtrar por outra
+coluna pode atingir várias. Um \texttt{update} ou \texttt{delete} que não
+encontra nada não dá erro: só informa ``0 linhas afetadas''. Esse
+comportamento volta nas transações (\refsec{cet615-transacoes-sqlserver}).
+
+\subsection{\texttt{truncate table}}
+
+Para esvaziar uma tabela grande, \texttt{delete} sem \texttt{where} pode
+estourar o log de transações, que é bem menor que o banco. O comando
+indicado é \texttt{truncate table emprestimo}.
+
+\subsection*{Complemento: o que o \texttt{truncate} registra}
+
+Em aula, a professora disse que o \texttt{truncate} não usa o log; o
+slide diz que ele usa menos log. A documentação\sidecite{MSTruncate}
+confirma o slide: o \texttt{delete} grava no log uma entrada por linha,
+enquanto o \texttt{truncate} desaloca as páginas da tabela e registra só
+essas desalocações. Outras diferenças documentadas:
+
+\begin{itemize}
+	\item o \texttt{truncate} pode ser desfeito com \texttt{rollback}
+	dentro de uma transação;
+	\item não funciona em tabela referenciada por chave estrangeira;
+	\item não dispara gatilhos, porque não registra as linhas
+	excluídas;
+	\item reinicia a contagem de colunas \texttt{identity}.
+\end{itemize}
+
+\section{Consultas}
+
+\subsection{Estrutura do \texttt{select}}
+
+\begin{lstlisting}
+select [distinct] colunas      -- o que mostrar
+from tabelas                   -- de onde
+[where condição]               -- quais linhas
+[group by colunas]             -- como agrupar
+[having condição]              -- quais grupos
+[order by colunas [asc|desc]]  -- em que ordem
+\end{lstlisting}
+
+Antes de consultar, escolha o banco com \texttt{use}. A professora
+lembrou que conhecer o esquema (chaves e relacionamentos) é o primeiro
+passo para escrever consultas, principalmente com junção.
+
+\subsection{SQL e álgebra relacional}
+
+Toda consulta SQL é traduzida pelo SGBD em operações de álgebra
+relacional. Na compilação, o SGBD considera árvores de álgebra
+equivalentes e escolhe a mais barata; a otimização não depende só de
+índices e estatísticas. A correspondência mostrada em aula:
+
+\begin{description}
+	\item[Lista do \texttt{select} = projeção ($\pi$):] corte vertical,
+	escolhe colunas.
+	\item[\texttt{where} = seleção ($\sigma$):] corte horizontal, escolhe
+	linhas.
+	\item[Junção no \texttt{from}:] produto cartesiano seguido de uma
+	condição, mas executado por um algoritmo próprio, mais eficiente.
+\end{description}
+
+Na álgebra, o resultado de uma consulta é uma relação e, portanto, não
+tem tuplas repetidas. Os SGBDs não eliminam repetições por padrão (seria
+caro), por isso o \texttt{distinct} precisa ser pedido.
+\textcite[cap. 6]{Elmasri2011} cobre a álgebra relacional, que a
+professora recomendou revisar.
+
+\subsection{Filtros}
+
+\begin{lstlisting}
+select titulo from livro where preco > 50
+select titulo from livro where preco between 20 and 50
+select nome from leitor where cidade in ('Campinas', 'Jundiaí')
+select nome from leitor where cidade not in ('Campinas')
+select nome from leitor where nome like 'A%'      -- começa com A
+select nome from leitor where nome like '_na%'    -- 2.a e 3.a letras "na"
+select nome from leitor where nome like '[A-C]%'  -- começa com A, B ou C
+\end{lstlisting}
+
+\texttt{between}, \texttt{in} e \texttt{like} com colchetes são
+atalhos: tudo pode ser escrito com \texttt{>=}, \texttt{<=}, \texttt{=}
+e \texttt{or}, só que mais longo. No \texttt{like}, \texttt{\%} vale
+qualquer sequência (inclusive vazia) e \texttt{\_} vale exatamente um
+caractere naquela posição, o que fixa o tamanho do texto.
+
+A professora frisou a \textbf{precedência}: operadores relacionais vêm
+antes dos lógicos, e \texttt{and} vem antes de \texttt{or}.
+
+\begin{lstlisting}
+-- errado: o filtro de preço só vale para 'romance'
+select titulo from livro
+where genero = 'poesia' or genero = 'romance' and preco > 50
+
+-- certo
+select titulo from livro
+where (genero = 'poesia' or genero = 'romance') and preco > 50
+\end{lstlisting}
+
+Parênteses a mais não fazem mal; a menos, podem dar resultado errado.
+
+\subsection{Nomes, cálculos e nulos}
+
+\begin{lstlisting}
+select titulo, preco * 0.9 as preco_desconto from livro
+select titulo, preco * 0.9 "preço com desconto" from livro
+select titulo from livro where preco is null
+\end{lstlisting}
+
+O \texttt{as} é opcional, e as aspas só são necessárias quando o nome tem
+espaço. O apelido é útil sobretudo em colunas calculadas, que sairiam sem
+nome. No SQL Server, o apelido não vale no \texttt{where} (é preciso
+repetir a expressão), mas vale no \texttt{order by}.
+
+Para testar nulo, use \texttt{is null} e \texttt{is not null}: a
+comparação \texttt{preco = null} não traz linha nenhuma.
+
+\subsection*{Complemento: a lógica de três valores}
+
+\textcite[seção 5.1.1]{Elmasri2011} explica por que \texttt{= null} não
+funciona. Um nulo pode significar valor desconhecido, valor omitido de
+propósito ou atributo que não se aplica, e a SQL não distingue os três
+casos. Toda comparação com nulo dá \textsc{desconhecido}, e não
+verdadeiro ou falso. A SQL usa então uma lógica de três valores:
+
+\begin{itemize}
+	\item \textsc{falso} \texttt{and} qualquer coisa dá \textsc{falso};
+	\textsc{verdadeiro} \texttt{and} \textsc{desconhecido} dá
+	\textsc{desconhecido};
+	\item \textsc{verdadeiro} \texttt{or} qualquer coisa dá
+	\textsc{verdadeiro}; \textsc{falso} \texttt{or} \textsc{desconhecido}
+	dá \textsc{desconhecido};
+	\item \texttt{not} \textsc{desconhecido} continua
+	\textsc{desconhecido}.
+\end{itemize}
+
+O \texttt{where} só devolve as linhas em que a condição é
+\textsc{verdadeiro}. Por isso \texttt{not in} tem uma armadilha: se a
+lista (ou a subconsulta) contém um nulo, a condição nunca é verdadeira e
+a consulta volta vazia.
+
+\subsection{Ordenação}
+
+\begin{lstlisting}
+select genero, titulo, preco from livro order by genero, preco desc
+\end{lstlisting}
+
+O padrão é \texttt{asc}. No SQL Server, os nulos vêm primeiro na ordem
+ascendente e por último na descendente. Ordenar pela segunda coluna só
+muda algo se a primeira tiver valores repetidos; ordenar por chave e
+depois por outra coluna gasta recurso à toa.
+
+\subsection{Funções de agregação, \texttt{group by} e \texttt{having}}
+
+\begin{lstlisting}
+select count(*) from livro              -- linhas
+select count(preco) from livro          -- linhas com preço não nulo
+select avg(preco), min(preco), max(preco), sum(preco) from livro
+select avg(distinct preco) from livro
+
+select genero, avg(preco) as media
+from livro
+group by genero
+having avg(preco) > 40
+\end{lstlisting}
+
+\begin{itemize}
+	\item \texttt{count(*)} conta linhas; \texttt{count(coluna)} e as
+	outras funções ignoram nulos.
+	\item Sem \texttt{group by}, \texttt{select genero, avg(preco)} dá
+	erro: a média devolve um valor e \texttt{genero}, vários. Toda coluna
+	fora de função de agregação precisa estar no \texttt{group by}.
+	\item Agrupar por chave não faz sentido: cada grupo teria uma linha só.
+	\item O \texttt{where} filtra linhas \emph{antes} do agrupamento e não
+	enxerga os grupos; para filtrar grupos existe o \texttt{having}. A
+	condição do \texttt{having} pode usar uma função diferente da que está
+	no \texttt{select}.
+\end{itemize}
+
+\section{Junções}
+
+O \textbf{produto cartesiano} (\texttt{cross join}) combina cada linha
+de uma tabela com todas as da outra: 18 títulos e 8 editoras dão 144
+linhas. Sozinho, quase nunca tem uso. A \textbf{junção}\index{junção}
+é o produto seguido de uma condição, geralmente igualdade entre chave
+estrangeira e chave primária. O algoritmo, porém, não monta o produto
+inteiro para filtrar depois: testa a condição a cada combinação e
+descarta na hora o que não serve.
+
+\begin{lstlisting}[caption={Junção interna com duas e três tabelas.}]
+select l.titulo, a.nome
+from livro l inner join autor a
+     on l.codautor = a.codautor
+where l.preco > 50
+
+select le.nome, l.titulo, e.data
+from leitor le inner join emprestimo e
+     on le.codleitor = e.codleitor
+     inner join livro l
+     on e.codlivro = l.codlivro
+\end{lstlisting}
+
+\begin{itemize}
+	\item A condição de junção fica no \texttt{on}; os filtros ficam no
+	\texttt{where}.
+	\item Junta-se de duas em duas tabelas, seguindo os relacionamentos.
+	Uma tabela já incluída fica visível para os \texttt{on} seguintes.
+	\item Uma tabela não tem colunas com o mesmo nome, mas o resultado de
+	uma junção pode ter. Sem o prefixo (\texttt{l.codautor}), dá erro de
+	ambiguidade. O apelido da tabela deve ser curto.
+	\item \texttt{join} sozinho é \texttt{inner join}.
+	\item A sintaxe antiga, com vírgula no \texttt{from} e a condição no
+	\texttt{where}, ainda funciona, mas mistura junção com filtro e fica
+	confusa com três tabelas ou mais. A professora pede a notação
+	\texttt{inner join ... on}.
+\end{itemize}
+
+\subsection{Junções externas}
+
+\begin{lstlisting}
+-- todos os leitores, inclusive os sem empréstimo
+select le.nome, e.codemprestimo
+from leitor le left join emprestimo e
+     on le.codleitor = e.codleitor
+
+-- só os leitores sem empréstimo
+select le.nome
+from leitor le left join emprestimo e
+     on le.codleitor = e.codleitor
+where e.codemprestimo is null
+\end{lstlisting}
+
+O \texttt{left join} mantém todas as linhas da tabela da esquerda e
+preenche com nulos o que não tem correspondência; o \texttt{right join}
+faz o mesmo com a da direita, e o \texttt{full join} com as duas. A
+palavra \texttt{outer} é opcional. Para achar as linhas sem
+correspondência, testa-se \texttt{is null} numa coluna da tabela do
+outro lado, que nem precisa estar no \texttt{select}.
+
+\subsection{O erro que conta na nota}
+
+O alerta com mais peso de avaliação da aula: \emph{não juntar tabela
+desnecessária}. Junção é cara. Se o código que já está na tabela de
+relacionamento basta, a consulta para ali. Numa consulta otimizada,
+juntar uma tabela que não contribui com nenhuma coluna nem filtro conta
+como erro, mesmo que o resultado saia certo.
+
+\begin{lstlisting}
+-- desnecessário: autor não contribui com nada
+select l.titulo, l.codautor
+from livro l inner join autor a on l.codautor = a.codautor
+
+-- suficiente
+select titulo, codautor from livro
+\end{lstlisting}
+
+\section{Subconsultas}
+
+\begin{lstlisting}
+-- livros da editora "Nova Lua", sem junção
+select titulo from livro
+where codeditora = (select codeditora from editora
+                    where nome = 'Nova Lua')
+
+-- livros de autores com sobrenome Ramos (pode haver vários)
+select titulo from livro
+where codautor in (select codautor from autor
+                   where sobrenome = 'Ramos')
+\end{lstlisting}
+
+A posição da professora é clara:
+
+\begin{itemize}
+	\item a subconsulta que vale a pena é a do \texttt{where} que
+	\emph{substitui} uma junção: são dois passos simples, sem produto
+	cartesiano;
+	\item use \texttt{=} só quando tiver certeza de que a subconsulta
+	devolve um único valor; senão, \texttt{in};
+	\item a consulta externa não enxerga colunas das tabelas internas. Se
+	essas colunas são necessárias, a solução é a junção;
+	\item subconsultas no \texttt{select} ou no \texttt{from} precisam ser
+	muito bem pensadas. Na opinião dela, perdem para a junção na maioria
+	dos casos, porque cada uma pode carregar sua própria junção. Ela
+	disse ver esse uso em toda parte, possivelmente em código gerado por
+	IA, e pediu senso crítico. O tema volta na disciplina de otimização.
+\end{itemize}
+
+\textcite[seção 5.1]{Elmasri2011} vai além da aula com subconsultas
+correlacionadas, \texttt{exists} e \texttt{unique}.
+
+\section{Transações}
+
+Uma \textbf{transação}\index{transação} é um conjunto de operações que o
+usuário enxerga como uma só: ou tudo é feito, ou nada. Exemplos da aula:
+uma transferência entre contas (débito e crédito); uma venda com baixa
+de estoque; o cadastro de uma pessoa física, que grava a parte genérica
+e a específica.
+
+\subsection{Estados}
+
+\begin{description}
+	\item[Ativa:] desde o \texttt{begin}, executando leituras e escritas.
+	\item[Parcialmente efetivada:] depois da última operação, mas antes do
+	\texttt{commit}. Ainda pode falhar (uma queda de energia, por
+	exemplo).
+	\item[Efetivada:] depois do \texttt{commit}.
+	\item[Falha:] depois de um erro, com \texttt{rollback} (ou
+	\emph{abort}, sinônimos).
+	\item[Encerrada:] o destino de todas, com sucesso ou com falha.
+\end{description}
+
+A professora insistiu que toda transação precisa chegar ao estado
+encerrada: uma transação aberta mantém os bloqueios e deixa os outros
+usuários esperando. O \texttt{rollback} ``dá a impressão de desfazer'',
+mas é sobretudo o aviso de encerramento.
+
+\subsection{Propriedades ACID}
+
+\begin{description}
+	\item[Atomicidade:] tudo ou nada.
+	\item[Consistência:] a transação leva o banco de um estado consistente
+	a outro.
+	\item[Isolamento:] cada transação se comporta como se executasse
+	sozinha.
+	\item[Durabilidade:] o que foi efetivado não se perde, nem com falha.
+\end{description}
+
+Na divisão da aula, atomicidade e consistência dependem de quem escreve
+a transação: o SGBD obedece, mas só o projetista sabe o que precisa ser
+agrupado. Se o débito de uma transferência for esquecido, o SGBD executa
+o crédito sem reclamar. Isolamento e durabilidade são responsabilidade
+do SGBD, que enxerga tudo o que está rodando.
+
+\textcite[seção 21.3]{Elmasri2011} divide um pouco diferente: o
+subsistema de recuperação garante atomicidade e durabilidade, o controle
+de concorrência garante isolamento, e a consistência cabe aos
+programadores e ao módulo de restrições de integridade. As duas visões
+se completam: o SGBD garante o ``tudo ou nada'' daquilo que o
+programador colocou dentro da transação.
+
+\subsection{Conflito e bloqueio}
+
+Duas operações \textbf{conflitam} quando pertencem a transações
+diferentes, acessam o mesmo item (tabela, página ou linha, conforme a
+granularidade) e pelo menos uma delas é escrita. Leituras não conflitam
+entre si. Diante de um conflito, o SGBD serializa as operações.
+
+O mecanismo usual é o \textbf{bloqueio}\index{bloqueio}: compartilhado
+para leitura e exclusivo para escrita. Bloquear o banco inteiro seria
+absurdo; a tabela é fácil de bloquear; a linha gera menos conflitos, mas
+custa mais para gerenciar. A página é o meio-termo, e é a granularidade
+mais comum. Bloqueios explícitos, escritos pelo programador, existem,
+mas o desejável é deixar o SGBD bloquear sozinho.
+
+Um caso comentado em aula: uma escrita precisa de bloqueio exclusivo e
+pode esperar para sempre enquanto chegam leituras com bloqueio
+compartilhado (\emph{livelock}). A solução é que, quando há uma escrita
+na fila, nenhuma nova leitura recebe bloqueio compartilhado.
+
+Regra prática da professora: transação enxuta, só com o que precisa ser
+agrupado, e com fim claro em \texttt{commit} ou \texttt{rollback}.
+
+\subsection{Transações no SQL Server}
+\labsec{cet615-transacoes-sqlserver}
+
+\begin{itemize}
+	\item O modo padrão é \emph{autocommit}: cada comando é uma transação
+	e é efetivado sozinho se não der erro.
+	\item A transação explícita começa com \texttt{begin tran} (ou
+	\texttt{begin transaction}) e termina com \texttt{commit} ou
+	\texttt{rollback}. Não existe \texttt{end transaction}.
+	\item No modo implícito, cada \texttt{commit} ou \texttt{rollback} já
+	abre a próxima transação. A professora desaconselha: exige muito
+	domínio e tende a segurar bloqueios por mais tempo.
+	\item \texttt{save tran} cria um ponto de retorno parcial. Ela não
+	vê sentido nele numa transação bem projetada.
+	\item O bloqueio é implícito; a granularidade padrão é a página.
+	\item \texttt{@@rowcount} é a variável do sistema com o número de
+	linhas afetadas pelo último comando. Ela usa \texttt{> 0} em vez de
+	\texttt{= 1} para valer também em \texttt{update} de várias linhas.
+	\item Blocos são \texttt{begin ... end}. Não existe \texttt{end if}.
+\end{itemize}
+
+A aula não usa \texttt{try...catch}: a lógica é escrita com
+\texttt{if}, que todo SGBD tem, para deixar visível o caminho de cada
+falha. O padrão de uma transferência:
+
+\begin{lstlisting}[caption={Transferência entre contas com \texttt{@@rowcount}.}]
+begin transaction
+update conta set saldo = saldo - 100 where numero = 1
+if @@rowcount > 0               -- débito feito
+begin
+   update conta set saldo = saldo + 100 where numero = 2
+   if @@rowcount > 0            -- crédito feito
+      commit transaction
+   else
+      rollback transaction
+end
+else
+   rollback transaction
+\end{lstlisting}
+
+Todo caminho termina em \texttt{commit} ou \texttt{rollback}, inclusive
+o primeiro \texttt{else}: mesmo sem nada gravado, a transação foi aberta
+e precisa ser encerrada. Com chaves estrangeiras, a ordem importa:
+insere-se primeiro a linha referenciada (cliente antes de pessoa física,
+conta antes de cliente--conta). Na demonstração da aula, a segunda
+inserção falhou e a primeira não ficou no banco. Sem a transação, ela
+teria ficado gravada sozinha.
+
+\subsection*{Complemento: o que o \texttt{rollback} faz por dentro}
+
+Em aula, a professora explicou que as escritas ficam no log e só vão
+para o banco no \texttt{commit}; o \texttt{rollback} apenas as descarta.
+É a estratégia de atualização adiada, que \textcite[cap. 23]{Elmasri2011}
+chama de NO-UNDO/REDO. O livro descreve também a atualização imediata,
+em que páginas alteradas podem ir para o disco antes do \texttt{commit}
+e o \texttt{rollback} precisa desfazê-las.
+
+O SQL Server segue a segunda linha\sidecite{MSTransactionLog}. Ele usa
+\emph{write-ahead logging}: nenhuma página alterada vai para o disco
+antes do registro de log correspondente. As páginas são alteradas na
+memória (\emph{buffer cache}) e gravadas depois, por exemplo num
+\emph{checkpoint}, que pode acontecer antes do \texttt{commit}. Por isso
+o log guarda a imagem anterior de cada alteração, e o \texttt{rollback}
+a reaplica. Na recuperação depois de uma queda, o SQL Server refaz o
+que foi efetivado e não chegou ao disco e desfaz o que ficou sem
+\texttt{commit}. O resultado visto pelo usuário é o mesmo da explicação
+da aula: o que não foi efetivado não fica no banco.
+
+A documentação reforça também o alerta sobre transações abertas: o log
+não pode ser truncado antes da transação ativa mais antiga, então uma
+transação esquecida faz o log crescer sem parar.

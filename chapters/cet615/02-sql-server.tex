@@ -1,0 +1,336 @@
+\setchapterpreamble[u]{\margintoc}
+\chapter{O SQL Server e o Banco de Dados}
+\labch{cet615-sqlserver}
+
+Este capítulo cobre a segunda apresentação da primeira
+aula\sidecite{BaiocoCET615}: a ferramenta de administração, os bancos que o
+próprio SQL Server mantém, os objetos de um banco e os arquivos em disco.
+Os complementos vêm da documentação oficial no Microsoft Learn.
+
+\section{SQL Server Management Studio}
+
+O \textbf{SSMS}\index{SSMS} é a interface gráfica para administrar o SQL
+Server desde a versão 2005; antes dela, o papel era do \emph{Enterprise
+Manager}. Quase tudo o que se faz em T-SQL também pode ser feito pelo SSMS,
+e o editor de consultas do SSMS executa os comandos T-SQL diretamente.
+
+\section{Bancos do sistema e bancos de usuário}
+
+Um servidor SQL Server guarda dois tipos de banco: os \textbf{bancos do
+sistema}, que o SGBD usa para se controlar, e os \textbf{bancos de
+usuário}, criados para as aplicações. Os bancos do sistema guardam
+metadados, os ``dados sobre os dados''.
+
+\begin{description}
+	\item[\texttt{master}:]\index{master@\texttt{master}} registra o nível de
+	sistema da instância: logins, bancos existentes, espaço de cada um,
+	configurações. A aula recomenda manter sempre um backup atualizado dele.
+	\item[\texttt{model}:] serve de molde para os bancos novos. Tudo o que
+	estiver no \texttt{model} (opções, tamanhos, permissões padrão, tipos)
+	é copiado para cada banco criado depois.
+	\item[\texttt{tempdb}:] área de trabalho para tabelas temporárias e
+	resultados intermediários de consultas, como as que usam
+	\texttt{group by} e \texttt{order by}.
+	\item[\texttt{msdb}:] usado pelo SQL Server Agent para agendar tarefas
+	(\emph{jobs}) e alertas.
+\end{description}
+
+Em aula\sidecite{BaiocoCET615Aulas}, a professora reforçou que o SQL
+Server \emph{distribui} o catálogo: o que vale para a instância toda
+(logins, lista de bancos) fica no \texttt{master}, e o esquema de cada
+banco fica nas tabelas de sistema do próprio banco. Sem o \texttt{master},
+os arquivos no disco não podem ser interpretados. Essa divisão é do SQL
+Server; outros SGBDs, como o Oracle, organizam o catálogo de outro jeito.
+
+Ela mostrou isso ao vivo: \texttt{select * from sys.databases}, executado
+no \texttt{master}, devolve a mesma lista de bancos que o SSMS exibe, com
+mais colunas. Todo comando DDL apenas grava no catálogo; depois de um
+\texttt{create database}, aparece uma linha nova em \texttt{sys.databases}.
+O SSMS é ``uma casca'' sobre esse catálogo, e o banco continua existindo
+sem a ferramenta. Um efeito prático: o SSMS só relê o catálogo quando se
+pede, então um banco criado por script só aparece no \emph{Object
+Explorer} depois de um \emph{Refresh}.
+
+\subsection*{Complemento: o banco \texttt{Resource} e a vida do \texttt{tempdb}}
+
+A documentação lista um quinto banco do sistema que não aparece no SSMS:
+o \texttt{Resource}\sidecite{MSSystemDatabases}. Ele é somente leitura e
+guarda fisicamente os objetos de sistema que acompanham o produto; esses
+objetos aparecem, logicamente, no esquema \texttt{sys} de cada banco.
+
+Sobre o \texttt{tempdb}, a documentação\sidecite{MSTempdb} detalha dois
+momentos de limpeza diferentes:
+
+\begin{itemize}
+	\item tabelas temporárias locais (\texttt{\#tabela}) e procedimentos
+	temporários somem quando a sessão que os criou se desconecta;
+	\item o \texttt{tempdb} inteiro é recriado vazio toda vez que o serviço
+	do SQL Server inicia. Por isso não se faz backup dele.
+\end{itemize}
+
+Além das tabelas temporárias, o \texttt{tempdb} guarda objetos internos,
+como as tabelas de trabalho de ordenações e agrupamentos, e o
+\emph{version store}, usado pelo isolamento por versão de linha e pelos
+gatilhos \texttt{after} (\refch{cet615-gatilhos}).
+
+\section{Tabelas do sistema e procedimentos do sistema}
+
+Os slides listam tabelas de sistema presentes em cada banco
+(\texttt{sysobjects}, \texttt{syscolumns}, \texttt{sysindexes},
+\texttt{sysforeignkeys}, \texttt{systypes}, \texttt{sysusers}) e outras só
+no \texttt{master} (\texttt{sysdatabases}, \texttt{syslogins},
+\texttt{sysmessages}, \texttt{sysprocesses}, \texttt{sysconfigures}).
+
+Os \textbf{procedimentos do sistema}\index{procedimento do sistema}, com
+prefixo \texttt{sp\_}, automatizam tarefas comuns:
+
+\begin{lstlisting}
+exec sp_help obras_literarias   -- estrutura de um objeto
+exec sp_helpdb espbd            -- dados de um banco e seus arquivos
+exec sp_helpindex compra        -- índices de uma tabela
+exec sp_helptext ins_livro      -- código de visão, procedimento ou gatilho
+\end{lstlisting}
+
+\subsection*{Complemento: visões de compatibilidade e visões de catálogo}
+
+Desde o SQL Server 2005, as tabelas \texttt{sys...} do SQL Server 2000
+existem só como \textbf{visões de compatibilidade}\sidecite{MSCompatViews}.
+Elas mostram apenas os metadados que existiam na versão 2000 e podem
+devolver nulo ou estourar em colunas de identificadores. Para recursos
+novos, a documentação recomenda as \textbf{visões de catálogo}\index{visão
+de catálogo}:
+
+\begin{table}[h]
+	\begin{tabular}{ll}
+		\toprule
+		Compatibilidade & Catálogo \\
+		\midrule
+		\texttt{sysobjects} & \texttt{sys.objects} \\
+		\texttt{syscolumns} & \texttt{sys.columns} \\
+		\texttt{sysindexes} & \texttt{sys.indexes} \\
+		\texttt{sysforeignkeys} & \texttt{sys.foreign\_keys} \\
+		\texttt{systypes} & \texttt{sys.types} \\
+		\texttt{sysusers} & \texttt{sys.database\_principals} \\
+		\texttt{sysdatabases} & \texttt{sys.databases} \\
+		\texttt{sysprocesses} & \texttt{sys.dm\_exec\_requests} \\
+		\bottomrule
+	\end{tabular}
+	\caption{Visões de compatibilidade e as visões de catálogo que as substituem.}
+\end{table}
+
+A documentação também desaconselha alterar objetos de sistema
+diretamente: a administração deve passar pelo SSMS, pela DDL e pelos
+procedimentos do sistema\sidecite{MSSystemDatabases}.
+
+\section{Objetos de um banco}
+
+Cada banco contém objetos (componentes lógicos):
+
+\begin{description}
+	\item[Tabelas:] as relações do modelo relacional.
+	\item[Índices:] aceleram o acesso às linhas das tabelas.
+	\item[Visões:] uma forma alternativa de ver dados de uma ou mais
+	tabelas (\refch{cet615-visoes}).
+	\item[Procedimentos armazenados:] conjuntos de comandos SQL compilados
+	e guardados no servidor (\refch{cet615-procedimentos}).
+	\item[Gatilhos:] procedimentos especiais que o SGBD executa sozinho
+	quando há \texttt{insert}, \texttt{update} ou \texttt{delete} na tabela
+	a que estão ligados (\refch{cet615-gatilhos}).
+	\item[Outros:] tipos de dados, restrições, \emph{defaults} e regras.
+\end{description}
+
+\section{T-SQL}
+
+O \textbf{Transact-SQL}\index{T-SQL} é a implementação da SQL no SQL
+Server: segue o padrão ANSI/ISO e acrescenta extensões, como variáveis,
+controle de fluxo e procedimentos. A divisão da aula para o T-SQL é:
+
+\begin{description}
+	\item[DDL:] criar, alterar e remover bancos, tabelas, índices, visões,
+	procedimentos, gatilhos, tipos, restrições, \emph{defaults} e regras.
+	\item[DML:] \texttt{select}, \texttt{insert}, \texttt{update},
+	\texttt{delete}, transações e a execução de visões e procedimentos.
+	\item[DCL:] logins, usuários e grupos, privilégios, backup e
+	recuperação, \emph{jobs}.
+\end{description}
+
+Cada fabricante tem sua extensão procedural: T-SQL no SQL Server, PL/SQL
+no Oracle, SQL PL no DB2. A SQL é declarativa (diz \emph{o que} se quer);
+os comandos procedurais são imperativos (dizem \emph{como} fazer). Mesmo
+comandos padronizados variam entre fabricantes, por exemplo nos tipos de
+dados. O \texttt{create trigger} existe no padrão, mas o corpo do gatilho
+é escrito na extensão de cada um.
+
+\subsection*{Complemento: lotes e o comando \texttt{go}}
+
+\index{go@\texttt{go}}Os scripts da disciplina separam trechos com
+\texttt{go}. Em aula, a professora disse que ele não é necessário no SSMS
+e que existe para utilitários de linha de comando. A documentação
+precisa esse ponto\sidecite{MSGo}: \texttt{go} não é um comando T-SQL e
+nunca chega ao servidor, mas é reconhecido tanto pelo \texttt{sqlcmd}
+quanto pelo editor do SSMS. Ele marca o fim de um \textbf{lote}
+(\emph{batch}): tudo o que vem antes é enviado e compilado junto.
+
+Por isso o \texttt{go} faz diferença mesmo no SSMS quando se executa um
+script inteiro:
+
+\begin{itemize}
+	\item variáveis locais só existem dentro do lote em que foram
+	declaradas;
+	\item \texttt{create view}, \texttt{create procedure} e
+	\texttt{create trigger} precisam ser o primeiro comando do lote;
+	\item fora da primeira linha do lote, a chamada de um procedimento
+	precisa de \texttt{exec}.
+\end{itemize}
+
+Ao executar só um trecho selecionado, como a professora faz em aula, o
+trecho já é um lote, e o \texttt{go} não muda nada.
+
+\section{Arquivos de um banco}
+
+Cada banco corresponde a arquivos no disco:
+
+\begin{description}
+	\item[Arquivo de dados primário (\texttt{.mdf}):] contém as informações
+	de inicialização do banco, aponta para os demais arquivos e guarda as
+	tabelas do sistema. Todo banco tem exatamente um.
+	\item[Arquivos de dados secundários (\texttt{.ndf}):] opcionais;
+	acrescentados conforme o banco cresce.
+	\item[Arquivo de log de transações (\texttt{.ldf}):] registra as
+	operações feitas no banco. Pode haver mais de um. A regra prática da
+	aula é dimensionar o log entre 10\% e 15\% do tamanho do banco (em
+	aula, ela falou em até 20\%).
+\end{description}
+
+O log não acompanha o tamanho do banco porque cresce e encolhe conforme
+as transações terminam e o backup de log é feito. Um log que cresce
+demais indica transações longas ou backup de log que não está sendo
+feito. A professora também chamou a atenção para a separação entre a
+visão lógica e a física: o usuário vê tabelas, mas no disco há poucos
+arquivos, não um por tabela. Pelo arquivo não se descobre a estrutura do
+banco nem se ele está cheio, porque o tamanho é reservado antes. Isso
+soma à segurança, junto com a criptografia.
+
+\subsection*{Complemento: grupos de arquivos}
+
+A documentação\sidecite{MSFilesFilegroups} acrescenta pontos que a aula
+não trata:
+
+\begin{itemize}
+	\item as extensões \texttt{.mdf}, \texttt{.ndf} e \texttt{.ldf} são
+	recomendadas, não obrigatórias;
+	\item arquivos de dados se organizam em \textbf{grupos de arquivos}
+	(\emph{filegroups})\index{filegroup}. O grupo \texttt{PRIMARY} contém o
+	arquivo primário e é o grupo padrão, a menos que outro seja definido
+	com \texttt{alter database}. Uma tabela pode ser criada em um grupo
+	específico (\texttt{create table ... on grupo});
+	\item arquivos de log nunca pertencem a grupo de arquivos;
+	\item dentro de um grupo, o SQL Server distribui as gravações entre os
+	arquivos em proporção ao espaço livre de cada um;
+	\item a recomendação é separar dados e log em discos diferentes; a
+	maioria dos bancos funciona bem com um arquivo de dados e um de log.
+\end{itemize}
+
+Cada arquivo tem dois nomes: o \textbf{lógico} (\texttt{name}), usado nos
+comandos T-SQL, e o \textbf{físico} (\texttt{filename}), o caminho no
+sistema operacional.
+
+\section{Criar, alterar e excluir bancos}
+
+Os três comandos são executados a partir do banco \texttt{master}.
+
+\subsection{\texttt{create database}}
+
+\begin{lstlisting}[caption={Banco com um arquivo de dados e um de log.}]
+use master
+go
+
+create database biblioteca
+on
+   (name = biblioteca_dados,
+    filename = 'C:\dados\biblioteca.mdf',
+    size = 10MB,
+    maxsize = 50MB,
+    filegrowth = 5MB)
+log on
+   (name = biblioteca_log,
+    filename = 'C:\dados\biblioteca.ldf',
+    size = 2MB,
+    maxsize = 10MB,
+    filegrowth = 10%)
+\end{lstlisting}
+
+Observações da aula sobre o comando:
+
+\begin{itemize}
+	\item \texttt{size} e \texttt{maxsize} aceitam KB, MB, GB e TB; sem
+	unidade, vale MB;
+	\item \texttt{filegrowth} pode ser absoluto (\texttt{5MB}) ou
+	percentual (\texttt{10\%});
+	\item não se usam decimais: em vez de \texttt{2.5MB}, escreve-se
+	\texttt{2560KB};
+	\item uma instância aceita no máximo 32.767 bancos;
+	\item o caminho em \texttt{filename} depende da instalação; o script
+	da aula usa a pasta \texttt{DATA} da instância.
+\end{itemize}
+
+\subsection*{Complemento: o que é obrigatório no \texttt{create database}}
+
+Em aula, a professora apresentou o \texttt{log on} como obrigatório e o
+arquivo secundário como opcional (normalmente acrescentado depois, com
+\texttt{alter database}). A documentação\sidecite{MSCreateDatabase} diz
+que todo banco tem pelo menos dois arquivos, um de dados primário e um
+de log, mas a \emph{cláusula} \texttt{log on} é opcional: sem ela, o SQL
+Server cria sozinho um arquivo de log com 25\% da soma dos arquivos de
+dados ou 512 KB, o que for maior. Sem nenhuma especificação de arquivo,
+o primário recebe o tamanho do primário do \texttt{model}; sem
+\texttt{maxsize}, o arquivo cresce até ocupar o disco. O
+\texttt{create database} também não pode rodar dentro de uma transação
+explícita.
+
+\begin{lstlisting}
+create database rascunho   -- tamanhos e caminhos padrão
+\end{lstlisting}
+
+\subsection{\texttt{alter database}}
+
+Todo \texttt{alter} pressupõe um banco em uso: é comando de manutenção,
+corretiva ou por mudança de regra de negócio. Em desenvolvimento, apagar
+e recriar costuma ser mais simples. Remover arquivo ou reduzir tamanho
+pode perder dados, então a recomendação da aula é fazer backup antes.
+
+\begin{lstlisting}[caption={Alterações comuns nos arquivos de um banco.}]
+-- acrescentar um arquivo de dados secundário
+alter database biblioteca
+add file
+   (name = biblioteca_dados2,
+    filename = 'C:\dados\biblioteca2.ndf',
+    size = 5MB)
+
+-- aumentar o tamanho de um arquivo
+alter database biblioteca
+modify file (name = biblioteca_dados, size = 20MB)
+
+-- remover um arquivo (ele precisa estar vazio)
+alter database biblioteca
+remove file biblioteca_dados2
+\end{lstlisting}
+
+\subsection{\texttt{drop database}}
+
+Nas palavras da professora, o \texttt{drop} é o comando mais simples e o
+mais perigoso, para qualquer objeto.
+
+\begin{lstlisting}
+drop database biblioteca
+drop database banco1, banco2   -- vários de uma vez
+\end{lstlisting}
+
+\subsection{Pelo SSMS}
+
+\begin{itemize}
+	\item criar: botão direito em \emph{Databases} $\rightarrow$ \emph{New
+	Database};
+	\item alterar: botão direito no banco $\rightarrow$ \emph{Properties};
+	\item excluir: botão direito no banco $\rightarrow$ \emph{Delete}.
+\end{itemize}

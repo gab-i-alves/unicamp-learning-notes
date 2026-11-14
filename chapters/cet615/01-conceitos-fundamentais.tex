@@ -1,0 +1,485 @@
+\setchapterpreamble[u]{\margintoc}
+\chapter{Conceitos Fundamentais}
+\labch{cet615-conceitos}
+
+Este capítulo resume a primeira aula da disciplina\sidecite{BaiocoCET615}:
+o que é um banco de dados, o papel do SGBD, as fases do projeto de um
+banco e a linguagem SQL. Os complementos vêm de \textcite{Elmasri2011},
+6.ª edição. O plano de ensino indica a 7.ª edição; a numeração de
+capítulos muda entre as duas, então as referências aqui valem para a 6.ª.
+
+\section{Banco de dados}
+
+Um \textbf{banco de dados} (BD)\index{banco de dados} é uma coleção de dados
+relacionados entre si e com significado. Juntar dados ao acaso não cria um
+banco: ele é projetado, construído e carregado para um propósito, atende
+um grupo de usuários e de aplicações e representa uma parte do mundo real,
+o \textbf{minimundo}\index{minimundo} ou universo de discurso. Quando o
+minimundo muda, o banco precisa mudar junto.
+
+\section{Do programa ao SGBD}
+
+A aula apresenta três formas de guardar dados em disco, em ordem de
+evolução:
+
+\begin{enumerate}
+	\item \textbf{Dados dentro do programa.} Código e dados formam um único
+	objeto; nenhum outro programa consegue usar os dados.
+	\item \textbf{Sistema de arquivos.} Os dados ficam em arquivos separados
+	dos programas, mas cada programa carrega no próprio código as rotinas de
+	gravar e ler. Mudar o formato de um arquivo obriga a mudar todos os
+	programas que o usam.
+	\item \textbf{Sistema de gerenciamento de banco de dados.} O SGBD fica
+	entre os programas e os arquivos e cuida do armazenamento e da
+	recuperação. Os programas ficam independentes da forma como os dados
+	estão gravados.
+\end{enumerate}
+
+Um \textbf{SGBD}\index{SGBD} é um software de uso geral para definir,
+construir e manipular bancos de dados de aplicações diferentes. As
+capacidades básicas citadas em aula são:
+
+\begin{itemize}
+	\item compartilhamento de dados com controle de concorrência;
+	\item controle de acesso para vários usuários;
+	\item garantia das restrições de integridade, como tipos de dados e
+	relacionamentos;
+	\item cópia de segurança (\emph{backup}) e recuperação
+	(\emph{recovery}) depois de falhas de hardware ou software.
+\end{itemize}
+
+\subsection*{Complemento: o que distingue a abordagem de banco de dados}
+
+\textcite[seção 1.3]{Elmasri2011} descreve quatro características que
+separam o banco de dados do sistema de arquivos:
+
+\begin{description}
+	\item[Natureza autodescritiva.] O SGBD guarda, no
+	\textbf{catálogo}\index{catálogo}, a definição completa do banco:
+	tabelas, tipos, restrições. Esses são os \textbf{metadados}. Um
+	programa sobre arquivos depende de definições escritas no próprio
+	código.
+	\item[Isolamento entre programas e dados.] A estrutura dos dados fica
+	no catálogo, e não no programa. Por isso é possível mudar a estrutura
+	sem reescrever os programas. O livro chama essa propriedade de
+	\emph{program-data independence}.
+	\item[Múltiplas visões.] Usuários diferentes podem ver subconjuntos
+	diferentes do banco, inclusive dados derivados que não estão gravados.
+	As visões do \refch{cet615-visoes} são a implementação disso em SQL.
+	\item[Compartilhamento e transações multiusuário.] Vários usuários
+	acessam o banco ao mesmo tempo, e o SGBD controla a concorrência para
+	que cada transação veja um estado consistente.
+\end{description}
+
+\section{Sistema de banco de dados}
+
+O \textbf{sistema de banco de dados}\index{sistema de banco de dados}
+(SBD) é o conjunto formado pelos bancos de dados e pelo SGBD. A aula
+divide o SBD em três partes:
+
+\begin{description}
+	\item[Interface com o usuário:] valida os pedidos dos usuários e
+	inicia as operações correspondentes no banco.
+	\item[Mecanismo de acesso:] mantém as estruturas de dados, acessa os
+	dados e garante a integridade.
+	\item[Armazenamento:] os arquivos que contêm os dados.
+\end{description}
+
+E cita quatro perfis de profissionais:
+
+\begin{description}
+	\item[Administrador do banco (DBA):] autoriza o acesso, coordena e
+	monitora o uso e resolve problemas como falhas de segurança e baixo
+	desempenho.
+	\item[Projetista do banco:] decide quais dados guardar e escolhe as
+	estruturas que os representam.
+	\item[Usuário final:] consulta e altera dados e gera relatórios.
+	\item[Analistas e programadores:] os analistas especificam as
+	transações que atendem aos usuários; os programadores as implementam.
+\end{description}
+
+\subsection*{Complemento: arquitetura de três esquemas}
+
+A aula não trata deste ponto, mas ele explica de onde vem a
+independência de dados. \textcite[seção 2.2]{Elmasri2011} descreve três
+níveis de esquema:
+
+\begin{description}
+	\item[Nível interno:] como os dados estão gravados fisicamente
+	(arquivos, índices, caminhos de acesso).
+	\item[Nível conceitual:] a estrutura do banco inteiro para a
+	comunidade de usuários: entidades, tipos, relacionamentos e
+	restrições, sem detalhes de armazenamento.
+	\item[Nível externo:] as visões de cada grupo de usuários.
+\end{description}
+
+O SGBD converte pedidos de um nível para o outro por meio de
+\emph{mapeamentos}. Daí saem dois tipos de independência:
+
+\begin{itemize}
+	\item \textbf{Independência lógica:}\index{independência de dados}
+	mudar o esquema conceitual (por exemplo, criar uma coluna) sem mudar
+	as visões nem os programas que não usam essa mudança.
+	\item \textbf{Independência física:} mudar o esquema interno (por
+	exemplo, criar um índice ou reorganizar arquivos) sem mudar o esquema
+	conceitual.
+\end{itemize}
+
+Segundo o livro, a independência física é comum na prática; a lógica é
+mais difícil, porque os programas dependem da estrutura que consultam.
+
+\section{Projeto de banco de dados}
+
+Quatro termos aparecem em todo o projeto:
+
+\begin{description}
+	\item[Modelo de dados:] conjunto de conceitos e regras para descrever a
+	estrutura de um banco (por exemplo, o modelo entidade-relacionamento ou
+	o modelo relacional).
+	\item[Modelagem:] o processo de estruturar a informação do minimundo
+	segundo um modelo de dados.
+	\item[Esquema:] a descrição do banco, em texto ou diagrama, conforme um
+	modelo. Muda pouco.
+	\item[Instância (ou estado):] os dados do banco em um momento. Muda a
+	cada inserção, alteração ou exclusão.
+\end{description}
+
+Dois alertas feitos em aula\sidecite{BaiocoCET615Aulas}:
+
+\begin{itemize}
+	\item O resultado da modelagem é um \emph{esquema}, não ``o modelo''. O
+	modelo é a linguagem comum que permite a todos ler o esquema do mesmo
+	jeito. A expressão ``o modelo do meu banco'' é comum no mercado, mas
+	troca os conceitos.
+	\item O esquema não se deduz das instâncias. Olhando os dados, uma
+	relação pode parecer 1:N e não ser. Quando o SSMS desenha o diagrama
+	de um banco pronto, ele lê a definição guardada no catálogo, e não os
+	dados.
+\end{itemize}
+
+\subsection{Fases do projeto}
+
+\begin{enumerate}
+	\item \textbf{Coleta e análise de requisitos.} Resulta em requisitos de
+	dados e requisitos funcionais.
+	\item \textbf{Projeto conceitual.} Modela os requisitos de dados no
+	ME-R (ou ME-R estendido) e gera o \emph{esquema conceitual},
+	independente de SGBD. Os requisitos funcionais viram a especificação
+	das transações.
+	\item \textbf{Projeto lógico.} Mapeia o esquema conceitual para o
+	modelo do tipo de SGBD escolhido (aqui, o relacional) e gera o
+	\emph{esquema lógico}. Depende do tipo de SGBD, mas não do fabricante.
+	\item \textbf{Projeto físico.} Implementa o esquema lógico com as
+	estruturas de armazenamento e acesso de um SGBD específico, usando a
+	DDL dele. Gera o \emph{esquema físico}.
+\end{enumerate}
+
+\section{Projeto conceitual: o ME-R}
+
+\marginnote{Em ordem: o modelo relacional de Codd é de 1970; o ME-R de
+Peter Chen, de 1976. O ME-R surgiu porque os esquemas relacionais
+cresceram e faltava um modelo para conceber o banco antes de
+implementá-lo.}
+O modelo entidade-relacionamento\index{ME-R} tem quatro construtores:
+conjunto de entidades, conjunto de relacionamentos, atributos de
+entidades e atributos de relacionamentos.
+
+\begin{description}
+	\item[Entidade:] algo sobre o qual se quer guardar informação. Pode ser
+	físico (pessoa, carro) ou conceitual (departamento, curso).
+	\item[Conjunto de entidades (CE):] agrupa entidades com propriedades
+	semelhantes. No diagrama, um retângulo.
+	\item[Relacionamento:] associação entre entidades, como
+	\emph{Funcionário trabalha em Departamento}.
+	\item[Conjunto de relacionamentos (CR):] agrupa relacionamentos
+	semelhantes. No diagrama, um losango.
+\end{description}
+
+\subsection{Grau e cardinalidade}
+
+O \textbf{grau} é o número de conjuntos de entidades que participam do
+relacionamento: binário (dois), ternário (três) e assim por diante. Um
+relacionamento pode ligar um conjunto a ele mesmo, como \emph{Disciplina
+é pré-requisito de Disciplina}; nesse caso, os papéis (``é pré-requisito
+de'' e ``pré-requisita'') distinguem as duas pontas.
+
+A \textbf{cardinalidade}\index{cardinalidade} diz com quantas entidades
+do outro lado cada entidade pode se relacionar:
+
+\begin{itemize}
+	\item \textbf{1:1}: um funcionário gerencia no máximo um departamento,
+	e cada departamento tem no máximo um gerente.
+	\item \textbf{1:N}: um funcionário pode ter vários dependentes, e cada
+	dependente depende de um só funcionário.
+	\item \textbf{N:M}: um funcionário desenvolve vários projetos, e cada
+	projeto tem vários funcionários.
+\end{itemize}
+
+Nos ternários, a cardinalidade combina as três pontas: 1:1:1, 1:1:N,
+1:N:M ou N:M:P. Para ler um ternário, fixam-se duas pontas e pergunta-se
+pela terceira: dado um aluno e um professor supervisor, quantas
+disciplinas esse aluno monitora? A resposta vem dos requisitos.
+
+Em aula, a professora completou o slide com a \textbf{multiplicidade} de
+cada papel, que tem um mínimo (0 ou 1) e um máximo (1 ou N). A
+cardinalidade do relacionamento é formada pelos \emph{máximos}, e é ela
+que define o mapeamento para o relacional. O mínimo só diz se a
+participação é obrigatória: pode existir departamento sem funcionário?
+Também não há sentido de leitura no diagrama: 1:N e N:1 são o mesmo
+relacionamento visto de lados opostos, e usar a mesma letra nos dois
+lados (N e N) não significa quantidades iguais.
+
+\subsection{Atributos e chaves}
+
+Atributos descrevem entidades e relacionamentos; seus valores são os
+dados guardados no banco. Na convenção da disciplina, atributos de
+entidades são obrigatórios e atributos de relacionamentos são opcionais.
+
+A \textbf{chave}\index{chave} de um conjunto de entidades é o conjunto
+de atributos cujos valores identificam cada entidade de forma única. Ela
+pode ser composta: uma turma pode ser identificada por sigla e período
+juntos. O ME-R indica uma só chave por conjunto de entidades, e
+relacionamentos não têm chave. Um atributo de relacionamento é o que só
+faz sentido na associação: a nota pertence ao par aluno--disciplina, não
+ao aluno nem à disciplina.
+
+\section{ME-R estendido}
+
+Modelar é escolher entre abstrair (agrupar em algo mais genérico) e
+detalhar. O ME-R estendido acrescenta duas abstrações ao ME-R:
+generalização e agregação.
+
+\subsection{Generalização}
+
+A \textbf{generalização}\index{generalização} reúne as características
+comuns de vários conjuntos de entidades em um conjunto genérico. No
+sentido contrário, a especialização detalha o genérico em conjuntos
+específicos. A relação entre eles é ``é um'', e os específicos herdam os
+atributos do genérico.
+
+Segundo a aula, vale usar generalização em dois casos:
+
+\begin{enumerate}
+	\item quando alguns atributos só se aplicam a parte das entidades do
+	genérico (só o professor tem área de pesquisa);
+	\item quando um relacionamento só envolve parte delas (só o professor
+	ministra disciplina).
+\end{enumerate}
+
+Basta um dos dois motivos para justificar um específico. Um específico
+também pode ter chave própria (o ISBN de um livro, numa livraria); no
+relacional, ela vira chave secundária, porque a primária é sempre a
+herdada do genérico.
+
+Duas propriedades classificam uma generalização, e elas são
+independentes:
+
+\begin{description}
+	\item[Participação total ou parcial:] na total, toda entidade do
+	genérico pertence a pelo menos um específico; na parcial, pode não
+	pertencer a nenhum.
+	\item[Exclusão mútua ou sobreposição:] na exclusão mútua, uma entidade
+	pertence a no máximo um específico; na sobreposição, pode pertencer a
+	vários.
+\end{description}
+
+Na notação da disciplina, a haste dupla entre o genérico e o triângulo
+indica participação total, e a simples indica parcial. O triângulo vazio
+indica exclusão mútua, e o pintado, sobreposição.
+
+\marginnote{Correspondência de termos: participação total ou parcial =
+\emph{completeness constraint}; exclusão mútua = \emph{disjoint}
+(\texttt{d} no diagrama); sobreposição = \emph{overlapping} (\texttt{o}).}
+\textcite[seção 8.3]{Elmasri2011} usa os mesmos dois eixos com outros
+nomes e chega às mesmas quatro combinações. O livro observa ainda que,
+quando a especialização é definida pelo valor de um atributo (como o
+\texttt{tipo} das obras literárias no exemplo da avaliação), a exclusão
+mútua vem de graça, porque o atributo só tem um valor por entidade.
+
+\subsection{Agregação}
+
+A \textbf{agregação}\index{agregação} transforma um relacionamento, com
+as entidades que ele liga, em um objeto agregado que pode ter atributos
+próprios e participar de outros relacionamentos. A aula cita dois casos
+de uso:
+
+\begin{enumerate}
+	\item representar um \emph{relacionamento entre relacionamentos}: o
+	trabalho de um empregado em um projeto usa máquinas;
+	\item dar uma chave própria a cada ocorrência do relacionamento: cada
+	venda de um produto por um vendedor a um cliente recebe um código. A
+	alternativa é uma chave adicional, como a data, somada às chaves dos
+	participantes.
+\end{enumerate}
+
+A professora insistiu que \emph{nem todo relacionamento vira agregação}.
+Um funcionário se associa a um dependente uma vez só, e isso não pede
+agregação. Ela faz sentido quando a mesma associação se repete em
+ocasiões diferentes e todas precisam ser guardadas: sem a agregação, uma
+segunda venda do mesmo produto, pelo mesmo vendedor, ao mesmo cliente
+apenas sobrescreveria a data da primeira.
+
+Sobre a escolha da chave:
+
+\begin{itemize}
+	\item se os requisitos já trazem um identificador, como o número da
+	nota fiscal, use-o; senão, gere um código;
+	\item a chave adicional (chaves das partes mais a data) basta quando o
+	agregado não se relaciona com mais nada;
+	\item se o agregado vai se relacionar com outro conjunto, prefira a
+	chave própria e mantenha a combinação das partes como restrição de
+	unicidade.
+\end{itemize}
+
+No desenho, o retângulo da agregação envolve o losango sem se fundir a
+ele, para que se veja quais hastes ligam ao relacionamento e quais ligam
+ao agregado. A agregação sempre envolve um único relacionamento.
+
+\subsection*{Complemento: agregação no Elmasri}
+
+\textcite[seção 8.7]{Elmasri2011} trata a agregação como um conceito
+geral de abstração, e não como construtor do diagrama EER. O livro
+discute o mesmo problema do primeiro caso acima: o ER não permite
+relacionamento entre relacionamentos. A solução que ele propõe dentro do
+ER é criar uma entidade fraca para o relacionamento e ligá-la ao outro
+conjunto. O agregado do ME-R estendido da disciplina cumpre esse papel
+direto no diagrama. Ao mapear para o modelo relacional, os dois caminhos
+geram a mesma tabela: a tabela \texttt{compra} da avaliação é um exemplo.
+
+\section{Projeto lógico: o modelo relacional}
+
+O modelo relacional\index{modelo relacional} tem dois construtores:
+\textbf{relações} e \textbf{atributos}. Informalmente, relação é tabela,
+atributo é coluna e tupla é linha (ou registro). Um esquema lógico é
+escrito como \texttt{Empregado = \{NumEmp, NomeEmp, Salario, Depto\}},
+com a chave primária sublinhada.
+
+\subsection{Chaves}
+
+\begin{description}
+	\item[Chave:] subconjunto mínimo de atributos cujos valores são únicos
+	em cada tupla. Mínimo quer dizer que, se qualquer atributo sair, a
+	unicidade se perde.
+	\item[Chave primária:] a chave escolhida para identificar as tuplas.
+	Na aula, o critério é a chave mais acessada. As outras chaves são as
+	\emph{candidatas} (ou secundárias): em \texttt{Pessoa}, se o CPF é a
+	primária, o RG é candidata.
+	\item[Chave estrangeira:] atributo cujo valor referencia a chave
+	primária de outra relação e cria o vínculo entre as duas. No esquema
+	lógico, ela é anotada assim: \emph{Depto -- chave estrangeira
+	referenciando Departamento}.
+\end{description}
+
+\subsection{Restrições de integridade}
+
+São regras sobre os valores que as relações podem guardar:
+
+\begin{description}
+	\item[Integridade de chave:] o valor da chave não se repete entre as
+	tuplas.
+	\item[Integridade de entidade:] a chave primária nunca é nula.
+	\item[Integridade referencial:] o valor de uma chave estrangeira existe
+	como chave primária na relação referenciada (ou é nulo, se o atributo
+	aceita nulo).
+\end{description}
+
+A professora destacou um ponto que costuma confundir: a chave primária
+nunca pode ser nula, mas a chave estrangeira e a chave secundária podem.
+Um gerente que não trabalha em nenhum departamento tem a chave
+estrangeira nula, e isso não viola nada.
+
+\textcite[seção 3.2]{Elmasri2011} acrescenta as \textbf{restrições de
+domínio} (cada valor pertence ao tipo e ao intervalo do atributo) e
+classifica as três da aula como restrições expressas no próprio esquema,
+diferentes das regras de negócio, que precisam de código. No SQL Server,
+essas regras de negócio aparecem como \emph{check}, gatilhos e
+procedimentos (\refch{cet615-gatilhos}).
+
+\subsection{Mapeamento do ME-R estendido para o relacional}
+
+A aula mostra o mapeamento com o sistema de venda de obras literárias
+usadas, o mesmo esquema da primeira avaliação:
+
+\begin{itemize}
+	\item cada conjunto de entidades vira uma relação (\texttt{cliente},
+	\texttt{obras\_literarias});
+	\item o relacionamento 1:N \emph{Vender} não vira relação: a chave do
+	lado 1 entra como chave estrangeira do lado N
+	(\texttt{login\_vendedor} em \texttt{obras\_literarias}), e o atributo
+	do relacionamento (\texttt{data}) vai junto;
+	\item a generalização vira uma relação para o genérico, com um
+	atributo \texttt{tipo}, e uma relação por específico, cuja chave
+	primária é também chave estrangeira para o genérico (\texttt{livro},
+	\texttt{periodico});
+	\item a agregação \emph{Compra} vira uma relação com chave própria
+	(\texttt{codcompra}) e chaves estrangeiras para o comprador e para a
+	obra.
+\end{itemize}
+
+Dois detalhes do mapeamento só aparecem no projeto físico:
+
+\begin{itemize}
+	\item chaves secundárias (como o RG do cliente) não saem
+	automaticamente do mapeamento; é preciso revisá-las e declará-las;
+	\item dentro da agregação, a obra participa de no máximo uma compra (o
+	lado 1). Uma chave estrangeira comum aceita repetição, então a
+	garantia vem de um índice \emph{único} sobre ela. É o papel do
+	\texttt{create unique index ix\_compra\_obra on compra(codobra)} no
+	esquema da avaliação.
+\end{itemize}
+
+No modelo relacional, a chave estrangeira referencia a chave primária
+da outra relação. O SQL Server também aceita referenciar uma coluna
+\texttt{unique}; a professora chama isso de ``burlar'' o modelo.
+
+Em aula, a professora justificou o atributo \texttt{tipo}: com exclusão
+mútua, ele permite saber o específico de cada obra consultando só a
+tabela genérica. Com sobreposição, um único \texttt{tipo} não basta.
+
+\subsection*{Complemento: as quatro opções de mapeamento}
+
+\textcite[seção 9.2, passo 8]{Elmasri2011} lista quatro opções para
+mapear especializações:
+
+\begin{description}
+	\item[8A -- genérico e específicos em relações separadas.] Funciona
+	para qualquer combinação de participação e exclusão. É a opção da
+	aula.
+	\item[8B -- só os específicos.] Cada específico recebe também os
+	atributos do genérico. Exige participação total e só é recomendada com
+	exclusão mútua, senão a mesma entidade se repete em várias relações.
+	\item[8C -- uma relação com um atributo de tipo.] Todos os atributos
+	ficam numa tabela só. Exige exclusão mútua e pode gerar muitos nulos.
+	\item[8D -- uma relação com um atributo booleano por específico.]
+	Serve para sobreposição.
+\end{description}
+
+O esquema da avaliação combina a 8A com o atributo de tipo da 8C: as
+tabelas ficam separadas, e o \texttt{tipo} evita juntar com cada
+específico só para saber de qual se trata.
+
+\section{A linguagem SQL}
+
+A SQL\index{SQL} é a linguagem padrão dos SGBDs relacionais. A ANSI
+publicou o primeiro padrão em 1986 (SQL-86), adotado pela ISO em 1987.
+Vieram depois a SQL-89 e a SQL-92; a SQL:1999 (SQL3), com recursos
+objeto-relacionais; a SQL:2003, com XML; a SQL:2006, com mais integração
+a XML; e as revisões de 2008, 2011 e 2016.
+
+A aula divide a SQL em três sublinguagens:
+
+\begin{description}
+	\item[DDL (definição):] cria, altera e remove a estrutura e os
+	objetos do banco: tabelas, índices, visões, procedimentos e gatilhos
+	(\refch{cet615-ddl}).
+	\item[DML (manipulação):] insere, consulta, altera e exclui dados
+	(\refch{cet615-dml}).
+	\item[DCL (controle):] usuários, permissões, segurança e
+	administração (\refch{cet615-dcl}).
+\end{description}
+
+\textcite[cap. 4]{Elmasri2011} explica que, a partir da SQL:1999, o
+padrão se divide em um núcleo, que todo SGBD compatível deveria
+implementar, e em extensões opcionais para áreas específicas. Os
+fabricantes somam a isso recursos próprios. O T-SQL (Transact-SQL), usado
+no resto desta parte, é o dialeto do SQL Server.

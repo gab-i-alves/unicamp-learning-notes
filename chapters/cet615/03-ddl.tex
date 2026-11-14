@@ -1,0 +1,400 @@
+\setchapterpreamble[u]{\margintoc}
+\chapter{T-SQL: Definição de Dados (DDL)}
+\labch{cet615-ddl}
+
+Este capítulo cobre a terceira apresentação da primeira
+aula\sidecite{BaiocoCET615}: tipos de dados, tabelas, restrições de
+integridade e índices. É o projeto físico na prática: transformar o
+esquema lógico em um script DDL e executá-lo no SQL Server. Os exemplos
+usam um banco de biblioteca, criado para estas anotações.
+
+\section{Tipos de dados}
+
+\begin{table}[h]
+	\begin{tabular}{lll}
+		\toprule
+		Categoria & Tipos & Tamanho \\
+		\midrule
+		Caractere & \texttt{char(n)}, \texttt{varchar(n)} & até $n$ bytes \\
+		Numérico exato & \texttt{decimal(p,e)}, \texttt{numeric(p,e)} & depende de $p$ \\
+		Numérico aproximado & \texttt{float}, \texttt{real} & 8 e 4 bytes \\
+		Inteiro & \texttt{int}, \texttt{smallint}, \texttt{tinyint} & 4, 2 e 1 byte \\
+		Monetário & \texttt{money}, \texttt{smallmoney} & 8 e 4 bytes \\
+		Data e hora & \texttt{datetime}, \texttt{smalldatetime} & 8 e 4 bytes \\
+		Binário & \texttt{binary(n)}, \texttt{varbinary(n)} & $n$ bytes \\
+		Outros & \texttt{bit} & 1 bit \\
+		\bottomrule
+	\end{tabular}
+	\caption{Tipos básicos do SQL Server apresentados em aula.}
+\end{table}
+
+Em \texttt{numeric(p,e)}, $p$ é o total de dígitos e $e$, quantos ficam
+depois da vírgula: \texttt{numeric(6,2)} vai até 9999,99. Diferente de
+\texttt{float} e \texttt{real}, os tipos exatos não têm erro de
+arredondamento, e por isso servem para valores monetários.
+
+\subsection{\texttt{char} ou \texttt{varchar}?}
+
+Foi o ponto mais longo da aula sobre tipos\sidecite{BaiocoCET615Aulas}.
+Quando todas as colunas têm tamanho fixo, o SGBD sabe exatamente onde
+começa cada coluna do registro. Basta uma coluna \texttt{varchar} para o
+registro passar a ter tamanho variável: o tamanho de cada valor precisa
+ser gravado e lido antes do próprio valor, e cada \texttt{varchar} a mais
+soma esse custo. A regra da professora é usar \texttt{varchar} só quando
+o ganho supera o custo: quando o tamanho varia muito (de 1 a 100
+caracteres, por exemplo) ou quando a coluna é opcional e quase sempre
+vazia. Nas palavras dela, tudo o que é muito flexível tem um custo; se
+\texttt{varchar} fosse sempre melhor, \texttt{char} não existiria.
+
+Ela também lembrou que \texttt{money} e os tipos de data e hora dependem
+da configuração de idioma do servidor.
+
+\subsection*{Complemento: tipos obsoletos e tipos novos}
+
+A tabela dos slides inclui tipos que a Microsoft marca como obsoletos:
+
+\begin{itemize}
+	\item \texttt{text}, \texttt{ntext} e \texttt{image} serão removidos em
+	versão futura; a documentação manda usar \texttt{varchar(max)},
+	\texttt{nvarchar(max)} e \texttt{varbinary(max)}\sidecite{MSTextImage};
+	\item \texttt{timestamp} não guarda data nem hora: é sinônimo de
+	\texttt{rowversion}, um contador binário que muda a cada alteração da
+	linha. A sintaxe \texttt{timestamp} também está obsoleta, e para
+	registrar data e hora a recomendação é
+	\texttt{datetime2}\sidecite{MSRowversion}.
+\end{itemize}
+
+Desde o SQL Server 2008 existem também \texttt{date} (só data),
+\texttt{time} (só hora), \texttt{datetime2} (maior precisão) e
+\texttt{datetimeoffset} (com fuso). O esquema da primeira avaliação usa
+\texttt{date}.
+
+\section{Tabelas}
+
+\subsection{\texttt{create table}}
+
+\begin{lstlisting}[caption={Tabela com nulidade explícita e valor padrão.}]
+use biblioteca
+go
+
+create table leitor (
+codleitor int not null,
+nome char(40) not null,
+email varchar(80) null,       -- opcional e de tamanho muito variável
+cidade char(30) not null default 'Campinas',
+primary key (codleitor)
+)
+\end{lstlisting}
+
+A tabela é criada no banco em uso (\texttt{use}). Cada coluna pode ser
+\texttt{null} ou \texttt{not null} e pode ter um \texttt{default}.
+
+O padrão de nulidade, quando nada é declarado, depende da configuração
+do banco no servidor. Por isso a professora recomenda declarar
+\texttt{null} ou \texttt{not null} em \emph{toda} coluna: o script pode
+rodar em outro servidor, com outra configuração. Nomes de coluna não
+levam espaço.
+
+\subsection{\texttt{alter table}}
+
+\begin{lstlisting}[caption={Alterações de estrutura.}]
+alter table leitor alter column nome char(60) not null  -- muda o tipo
+alter table leitor add telefone char(11) null             -- nova coluna
+alter table leitor add default 'SP' for uf                -- novo default
+alter table leitor drop column telefone                   -- remove coluna
+
+exec sp_rename 'leitor', 'leitores'           -- renomeia tabela
+exec sp_rename 'leitores.cidade', 'municipio' -- renomeia coluna
+\end{lstlisting}
+
+Regras e alertas:
+
+\begin{itemize}
+	\item a coluna nova entra no fim da tabela e, segundo a aula, precisa
+	aceitar nulo: as linhas que já existem não teriam valor para ela. O SQL
+	Server também aceita uma coluna \texttt{not null} nova se ela tiver
+	\texttt{default}; as linhas existentes recebem o valor padrão
+	(\texttt{alter table livro add qtd\_exemplares int not null default
+	0});
+	\item uma coluna só sai se nada depender dela (restrição, índice,
+	\texttt{unique}, \texttt{default});
+	\item alterações seguras são as que não prejudicam dados existentes:
+	aumentar o tamanho de um \texttt{char}, acrescentar coluna ou
+	\texttt{default};
+	\item renomear tabela ou coluna de um banco em uso pode quebrar as
+	aplicações que usam o nome antigo. Vale pensar nos nomes antes;
+	\item como no \refch{cet615-sqlserver}, \texttt{alter} é manutenção de
+	banco em uso. Em desenvolvimento, a professora prefere apagar e
+	recriar.
+\end{itemize}
+
+\subsection{\texttt{drop table}}
+
+\begin{lstlisting}
+drop table emprestimo
+drop table emprestimo, exemplar, livro   -- várias de uma vez
+\end{lstlisting}
+
+Uma tabela referenciada por chave estrangeira não pode ser apagada antes
+da tabela que a referencia. A ordem de remoção é a inversa da ordem de
+criação.
+
+\section{Restrições de integridade}
+
+As restrições de entidade, de chave e referencial do
+\refch{cet615-conceitos} viram cláusulas do \texttt{create table}.
+
+\begin{description}
+	\item[\texttt{primary key}:]\index{primary key@\texttt{primary key}} a
+	coluna é sempre \texttt{not null}, e o SQL Server cria um índice
+	\emph{clusterizado} para ela (o padrão pode ser trocado para não
+	clusterizado).
+	\item[\texttt{unique}:] chave secundária. Pode haver várias por tabela,
+	a coluna aceita nulo, e o SQL Server cria um índice \emph{não
+	clusterizado} único para ela.
+	\item[\texttt{foreign key}:] a tabela referenciada precisa existir
+	antes. O SQL Server \emph{não} cria índice para chave estrangeira.
+\end{description}
+
+\begin{lstlisting}[caption={Esquema de biblioteca com as três restrições.}]
+create table autor (
+codautor int not null,
+nome char(40) not null,
+primary key (codautor)
+)
+
+create table livro (
+codlivro int not null,
+titulo char(60) not null,
+isbn numeric(13,0) not null,
+codautor int not null,
+primary key (codlivro),
+unique (isbn),
+foreign key (codautor) references autor
+)
+
+create index ix_livro_autor on livro (codautor)  -- índice da FK
+
+create table emprestimo (
+codemprestimo int not null,
+codlivro int not null,
+codleitor int not null,
+data date not null,
+primary key (codemprestimo),
+foreign key (codlivro) references livro,
+foreign key (codleitor) references leitor
+)
+
+create index ix_emprestimo_livro on emprestimo (codlivro)
+create index ix_emprestimo_leitor on emprestimo (codleitor)
+\end{lstlisting}
+
+Pontos destacados em aula:
+
+\begin{itemize}
+	\item Sem chave primária, chave secundária e, principalmente, chave
+	estrangeira, o banco deixa de ser relacional. Nas palavras dela, para
+	criar tabela sem restrição, melhor usar um banco não relacional.
+	\item \texttt{references autor}, sem coluna, aponta para a chave
+	primária, como manda o modelo, e falha se a primária tiver sido
+	esquecida. Indicar a coluna (\texttt{references autor (codautor)})
+	permite apontar para qualquer coluna \texttt{unique}.
+	\item O índice da chave estrangeira é obrigatório na prática: o SQL
+	Server não o cria. A explicação da professora é que o índice da
+	chave estrangeira normalmente não é único, já que quase toda chave
+	estrangeira vem de um relacionamento 1:N ou N:M. Num 1:1, o lado 1
+	precisa de índice único ou \texttt{unique} na chave estrangeira.
+	\item A ordem do script importa: primeiro as tabelas referenciadas,
+	depois as que referenciam.
+	\item A professora declara as restrições no fim da tabela. Há uma
+	armadilha em declará-las na linha da coluna quando a chave é composta:
+	duas \texttt{primary key} dão erro, mas \texttt{unique} e
+	\texttt{foreign key} não dão erro e criam uma restrição separada por
+	coluna, em vez de uma restrição composta.
+\end{itemize}
+
+\subsection{Nomear, remover e acrescentar restrições}
+
+Dar nome à restrição é opcional; sem nome, o SQL Server gera um, que
+\texttt{sp\_help tabela} mostra. O nome é necessário para remover:
+
+\begin{lstlisting}
+exec sp_help emprestimo                  -- descobre o nome
+alter table emprestimo drop constraint FK__emprestim__codli__1234
+
+alter table leitor
+add constraint uq_leitor_email unique (email)  -- nome explícito
+\end{lstlisting}
+
+Restrições normalmente nascem no \texttt{create table}. Criar uma
+chave primária depois que o banco está no ar não faz sentido, porque
+nulos e repetidos já podem ter entrado. O \texttt{alter table ... add}
+serve para corrigir uma chave secundária esquecida (correndo o risco de
+já haver repetidos) ou para criar as tabelas em qualquer ordem e
+declarar todas as restrições no fim. É assim que o SSMS gera o script de
+um banco existente.
+
+\subsection*{Complemento: ações referenciais e \texttt{check}}
+
+\textcite[seção 4.2]{Elmasri2011} trata dois recursos que a aula não
+cobre:
+
+\begin{description}
+	\item[Ações referenciais.] Por padrão, o SGBD rejeita a operação que
+	violaria a integridade referencial: não se apaga um autor que tem
+	livros. A chave estrangeira pode declarar outra ação, separada para
+	\texttt{on delete} e \texttt{on update}: \texttt{cascade} (propaga a
+	exclusão ou a nova chave), \texttt{set null} ou \texttt{set default}.
+	O livro sugere \texttt{cascade} para tabelas que mapeiam
+	relacionamentos, atributos multivalorados e entidades fracas. No SQL
+	Server, o padrão se chama \texttt{no action}.
+	\item[\texttt{check}.] Restrição sobre os valores de uma linha, como
+	\texttt{check (preco > 0)}. É a forma declarativa das regras
+	simples; regras que envolvem outras tabelas ficam para os gatilhos
+	(\refch{cet615-gatilhos}).
+\end{description}
+
+\begin{lstlisting}
+create table exemplar (
+codexemplar int not null,
+codlivro int not null,
+estado char(1) not null check (estado in ('N', 'U', 'D')),
+primary key (codexemplar),
+foreign key (codlivro) references livro on delete cascade
+)
+\end{lstlisting}
+
+\section{Índices}
+
+Um \textbf{índice}\index{índice} é uma estrutura que acelera o acesso às
+linhas a partir dos valores de uma ou mais colunas. Ele guarda uma
+cópia ordenada dos valores da coluna com ponteiros para as linhas.
+Ajuda consultas e também atualizações e exclusões, que precisam
+encontrar a linha antes de mudá-la. Em troca, ocupa disco e precisa ser
+atualizado a cada \texttt{insert}, \texttt{update} e \texttt{delete}.
+Muitos índices inúteis pioram as atualizações sem ganho nas consultas.
+
+O uso é transparente: ninguém pede ao SGBD que use o índice. O
+\textbf{otimizador de consultas} decide, e pode ignorar um índice que
+não ajuda.
+
+\subsection{Quando usar}
+
+\begin{itemize}
+	\item colunas usadas no \texttt{where} de \texttt{select},
+	\texttt{update} e \texttt{delete}, desde que a condição devolva
+	\emph{poucas} linhas;
+	\item colunas usadas em \texttt{order by};
+	\item colunas usadas em junções.
+\end{itemize}
+
+E quando não usar: em tabelas pequenas e em colunas com poucos valores
+distintos. Uma coluna com três valores possíveis devolve, em média, um
+terço das linhas por consulta, e a varredura sequencial sai mais barata.
+A regra empírica da professora é que, acima de 20\% a 25\% das linhas, a
+varredura compensa; tabela pequena, para ela, tem menos de mil linhas.
+
+Resumo da aula: chave primária, chave secundária e chave estrangeira se
+indexam ``sem pensar''. O que sobra são índices não únicos e não
+clusterizados em colunas buscadas com frequência e com poucos repetidos,
+como nome de cliente ou título de livro. Uma coluna como UF ou CEP
+repete demais para valer a pena.
+
+\subsection{Clusterizado e não clusterizado}
+
+\begin{description}
+	\item[Clusterizado (\emph{clustered}):]\index{índice clusterizado} as
+	folhas da árvore B são as próprias páginas de dados, na ordem do
+	índice. Por isso só pode haver um por tabela: os dados não podem estar
+	fisicamente ordenados por duas colunas ao mesmo tempo. Convém criá-lo
+	antes dos outros, porque sua criação reordena a tabela e reconstrói os
+	demais índices. A escolha deve ser a coluna mais usada em
+	\texttt{where}, junções, \texttt{order by} e \texttt{group by}; na
+	falta de melhor, a chave primária.
+	\item[Não clusterizado (\emph{nonclustered}):] as folhas guardam
+	ponteiros para as linhas, que seguem a ordem do clusterizado. Pode
+	haver vários por tabela, e é o tipo padrão do \texttt{create index}.
+\end{description}
+
+\subsection{Único e composto}
+
+\begin{description}
+	\item[Único:] os valores não se repetem; a criação falha se já houver
+	repetidos. Índice único em coluna \texttt{not null} equivale, na
+	prática, a uma chave primária.
+	\item[Composto:] formado por várias colunas, em ordem. Funciona como
+	ordenar pela primeira coluna e, nos empates, pela segunda. Por isso
+	(\texttt{uf}, \texttt{cidade}) é diferente de (\texttt{cidade},
+	\texttt{uf}), e o otimizador usa o índice mesmo quando só a primeira
+	coluna aparece na busca. Se for único, o que não se repete é a
+	combinação.
+\end{description}
+
+Uma consequência aparece no script da aula: a chave primária composta
+de uma tabela de itens (\texttt{num\_pedido}, \texttt{codigo\_p}) já
+gera um índice que atende buscas só por \texttt{num\_pedido}. Só a
+segunda chave estrangeira precisa de índice próprio. Pelo mesmo motivo,
+a professora reconheceu que o exemplo de índice composto do slide, sobre
+as mesmas colunas da chave primária, só serve para mostrar a sintaxe.
+
+\subsection{\texttt{create index} e \texttt{drop index}}
+
+\begin{lstlisting}
+create [unique] [clustered | nonclustered] index nome
+on tabela (coluna1 [, coluna2, ...])
+
+create index ix_livro_titulo on livro (titulo)
+create unique index ix_leitor_cpf on leitor (cpf)
+create index ix_exemplar_livro_estado on exemplar (codlivro, estado)
+
+drop index livro.ix_livro_titulo
+drop index livro.ix_livro_titulo, leitor.ix_leitor_cpf
+\end{lstlisting}
+
+O \texttt{drop index} usa \texttt{tabela.indice} porque o mesmo nome de
+índice pode existir em tabelas diferentes. Um índice único em
+\texttt{cpf} tem o mesmo efeito de declarar \texttt{unique (cpf)} na
+tabela.
+
+\subsection*{Complemento: páginas, limites e a teoria dos índices}
+
+A documentação corrige dois números ditos em aula:
+
+\begin{itemize}
+	\item o limite de índices não clusterizados por tabela é 999 desde o
+	SQL Server 2008; os 249 do slide eram o limite das versões
+	anteriores\sidecite{MSCapacity};
+	\item a página do SQL Server tem tamanho fixo de 8 KB e não é
+	configurável; oito páginas contíguas formam uma \emph{extensão} de
+	64 KB, e a leitura e a gravação em disco são feitas por página
+	inteira\sidecite{MSPages}. Uma linha comporta até 8.060 bytes. O que
+	o DBA ajusta é o \emph{fill factor}, a fração de cada página de índice
+	preenchida na criação.
+\end{itemize}
+
+Na teoria, \textcite[cap. 18]{Elmasri2011} distingue três índices de um
+nível: o \emph{primário}, sobre o campo-chave de um arquivo ordenado por
+ele; o de \emph{agrupamento} (\emph{clustering}), sobre um campo não
+chave pelo qual o arquivo está ordenado; e o \emph{secundário}, sobre
+qualquer outro campo. Um arquivo tem no máximo um índice primário ou de
+agrupamento, e quantos secundários quiser. É a mesma restrição do índice
+clusterizado do SQL Server. O capítulo também explica as árvores B e
+B$^+$, a estrutura dos índices de vários níveis que o SQL Server usa.
+
+\section{Do esquema ao script}
+
+O roteiro da aula para transformar o esquema lógico em DDL:
+
+\begin{enumerate}
+	\item criar as tabelas na ordem do esquema lógico, das referenciadas
+	para as que referenciam;
+	\item em cada tabela, declarar tipos, nulidade, chave primária,
+	chaves secundárias e chaves estrangeiras;
+	\item criar um índice para cada chave estrangeira que não seja a
+	primeira coluna da chave primária;
+	\item avaliar índices extras pelas consultas previstas;
+	\item conferir o resultado no diagrama do SSMS (\emph{Database
+	Diagrams} $\rightarrow$ \emph{New Database Diagram}), que desenha o
+	esquema físico a partir do catálogo;
+	\item para desfazer, apagar as tabelas na ordem inversa.
+\end{enumerate}
