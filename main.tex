@@ -36,14 +36,13 @@
 % Choose the language
 \ifxetexorluatex
 	\usepackage{polyglossia}
-	\setmainlanguage{english}
+	\setmainlanguage[variant=brazilian]{portuguese}
 \else
-	\usepackage[english]{babel} % Load characters and hyphenation
+	\usepackage[brazilian]{babel} % Load characters and hyphenation
 \fi
-\usepackage[english=british]{csquotes}	% English quotes
+\usepackage{csquotes}	% Quotes in the document language
 
 % Load packages for testing
-\usepackage{blindtext}
 %\usepackage{showframe} % Uncomment to show boxes around the text area, margin, header and footer
 %\usepackage{showlabels} % Uncomment to output the content of \label commands to the document where they are used
 
@@ -57,9 +56,37 @@
 % Load the package for hyperreferences
 \usepackage{kaorefs}
 
+% Portuguese strings for the kaorefs reference commands (kaorefs has no Portuguese set)
+\renewcommand{\chapternameshort}{Cap.}
+\renewcommand{\sectionname}{Seção}
+\renewcommand{\sectionnameshort}{Seç.}
+\renewcommand{\subsectionname}{Subseção}
+\renewcommand{\figurenameshort}{Fig.}
+\renewcommand{\tablenameshort}{Tab.}
+
 \graphicspath{{examples/documentation/images/}{images/}} % Paths in which to look for images
 
-\makeindex[columns=3, title=Alphabetical Index, intoc] % Make LaTeX produce the files required to compile the index
+% T-SQL listings: kaolst style, SQL Server keywords and accented characters in comments
+\lstdefinelanguage{TSQL}[]{SQL}{
+	morekeywords={go,exec,execute,procedure,proc,trigger,view,print,declare,
+		begin,end,transaction,tran,commit,rollback,return,output,grant,revoke,
+		deny,inserted,deleted,top,identity,nvarchar,varchar,char,numeric,money,
+		tinyint,bit,datetime,use,database,index,clustered,nonclustered,unique,
+		instead,after,if,else,while,exists,raiserror,throw,try,catch,login,
+		user,role,schema,with,check,option,cascade,merge,output,over,partition},
+	sensitive=false,
+}
+\lstset{
+	style=kaolst,
+	language=TSQL,
+	inputencoding=utf8,
+	extendedchars=true,
+	literate={á}{{\'a}}1 {à}{{\`a}}1 {ã}{{\~a}}1 {â}{{\^a}}1 {é}{{\'e}}1
+		{ê}{{\^e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {õ}{{\~o}}1 {ô}{{\^o}}1 {ú}{{\'u}}1
+		{ç}{{\c c}}1 {Á}{{\'A}}1 {É}{{\'E}}1 {Ç}{{\c C}}1 {Ã}{{\~A}}1,
+}
+
+\makeindex[columns=3, title=Índice Remissivo, intoc] % Make LaTeX produce the files required to compile the index
 
 \makeglossaries % Make LaTeX produce the files required to compile the glossary
 \input{glossary.tex} % Include the glossary definitions
@@ -77,17 +104,18 @@
 %	BOOK INFORMATION
 %----------------------------------------------------------------------------------------
 
-\titlehead{The \texttt{kaobook} class}
-\subject{Use this document as a template}
+\titlehead{%
+	\includegraphics[height=2cm]{logo-unicamp.jpg}\hfill
+	\includegraphics[height=1.2cm]{logo-extecamp.png}\par\medskip
+	Faculdade de Tecnologia --- Unicamp}
+\subject{Especialização em Engenharia e Administração de Sistemas de Banco de Dados}
 
-\title[Example and documentation of the {\normalfont\texttt{kaobook}} class]{Example and documentation \\ of the {\normalfont\texttt{kaobook}} class}
-\subtitle{Customise this page according to your needs}
+\title{Anotações de Estudo}
+\subtitle{Resumos das disciplinas com complementos da bibliografia}
 
-\author[Federico Marotta]{Federico Marotta\thanks{A \LaTeX\ lover}}
+\author{Gabriele Alves}
 
 \date{\today}
-
-\publishers{An Awesome Publisher}
 
 %----------------------------------------------------------------------------------------
 
@@ -114,43 +142,29 @@
 %----------------------------------------------------------------------------------------
 
 \makeatletter
-\uppertitleback{\@titlehead} % Header
+\uppertitleback{Faculdade de Tecnologia --- Unicamp} % Header
 
 \lowertitleback{
-	\textbf{Disclaimer}\\
-	You can edit this page to suit your needs. For instance, here we have a no copyright statement, a colophon and some other information. This page is based on the corresponding page of Ken Arroyo Ohori's thesis, with minimal changes.
-	
+	\textbf{Sobre estas anotações}\\
+	Anotações pessoais de estudo. Os resumos foram escritos com palavras
+	próprias a partir das aulas, dos slides e da bibliografia de cada
+	disciplina, sempre com a fonte indicada. Os slides, scripts e listas de
+	exercícios pertencem aos respectivos professores.
+
 	\medskip
-	
-	\textbf{No copyright}\\
-	\cczero\ This book is released into the public domain using the CC0 code. To the extent possible under law, I waive all copyright and related or neighbouring rights to this work.
-	
-	To view a copy of the CC0 code, visit: \\\url{http://creativecommons.org/publicdomain/zero/1.0/}
-	
-	\medskip
-	
-	\textbf{Colophon} \\
-	This document was typeset with the help of \href{https://sourceforge.net/projects/koma-script/}{\KOMAScript} and \href{https://www.latex-project.org/}{\LaTeX} using the \href{https://github.com/fmarotta/kaobook/}{kaobook} class.
-	
-	The source code of this book is available at:\\\url{https://github.com/fmarotta/kaobook}
-	
-	(You are welcome to contribute!)
-	
-	\medskip
-	
-	\textbf{Publisher} \\
-	First printed in May 2019 by \@publishers
+
+	\textbf{Colofão} \\
+	Composto em \href{https://www.latex-project.org/}{\LaTeX} com o
+	\href{https://sourceforge.net/projects/koma-script/}{\KOMAScript} e a
+	classe \href{https://github.com/fmarotta/kaobook/}{kaobook}.
+
+	Código-fonte: \url{https://github.com/gab-i-alves/unicamp-learning-notes}
 }
 \makeatother
 
 %----------------------------------------------------------------------------------------
 %	DEDICATION
 %----------------------------------------------------------------------------------------
-
-\dedication{
-	The harmony of the world is made manifest in Form and Number, and the heart and soul and all the poetry of Natural Philosophy are embodied in the concept of mathematical beauty.\\
-	\flushright -- D'Arcy Wentworth Thompson
-}
 
 %----------------------------------------------------------------------------------------
 %	OUTPUT TITLE PAGE AND PREVIOUS
@@ -201,31 +215,19 @@
 \mainmatter % Denotes the start of the main document content, resets page numbering and uses arabic numbers
 \setchapterstyle{kao} % Choose the default chapter heading style
 
-\input{chapters/introduction.tex}
-
 \pagelayout{wide} % No margins
-\addpart{Class Options, Commands and Environments}
+\addpart{CET 615 --- Fundamentos de Sistemas de Banco de Dados}
 \pagelayout{margin} % Restore margins
 
-\input{chapters/options.tex}
-\input{chapters/textnotes.tex}
-\input{chapters/figsntabs.tex}
-\input{chapters/references.tex}
-
-\pagelayout{wide} % No margins
-\addpart{Design and Additional Features}
-\pagelayout{margin} % Restore margins
-
-\input{chapters/layout.tex}
-\input{chapters/mathematics.tex}
-
-\appendix % From here onwards, chapters are numbered with letters, as is the appendix convention
-
-\pagelayout{wide} % No margins
-\addpart{Appendix}
-\pagelayout{margin} % Restore margins
-
-\input{chapters/appendix.tex}
+\input{chapters/cet615/01-conceitos-fundamentais.tex}
+\input{chapters/cet615/02-sql-server.tex}
+\input{chapters/cet615/03-ddl.tex}
+\input{chapters/cet615/04-dml.tex}
+\input{chapters/cet615/05-visoes.tex}
+\input{chapters/cet615/06-procedimentos.tex}
+\input{chapters/cet615/07-gatilhos.tex}
+\input{chapters/cet615/08-dcl.tex}
+\input{chapters/cet615/09-avaliacoes.tex}
 
 %----------------------------------------------------------------------------------------
 
@@ -238,53 +240,7 @@
 
 % The bibliography needs to be compiled with biber using your LaTeX editor, or on the command line with 'biber main' from the template directory
 
-\defbibnote{bibnote}{Here are the references in citation order.\par\bigskip} % Prepend this text to the bibliography
-\printbibliography[heading=bibintoc, title=Bibliography, prenote=bibnote] % Add the bibliography heading to the ToC, set the title of the bibliography and output the bibliography note
-
-%----------------------------------------------------------------------------------------
-%	NOMENCLATURE
-%----------------------------------------------------------------------------------------
-
-% The nomenclature needs to be compiled on the command line with 'makeindex main.nlo -s nomencl.ist -o main.nls' from the template directory
-
-\nomenclature{$c$}{Speed of light in a vacuum inertial frame}
-\nomenclature{$h$}{Planck constant}
-
-\renewcommand{\nomname}{Notation} % Rename the default 'Nomenclature'
-\renewcommand{\nompreamble}{The next list describes several symbols that will be later used within the body of the document.} % Prepend this text to the nomenclature
-
-\printnomenclature % Output the nomenclature
-
-%----------------------------------------------------------------------------------------
-%	GREEK ALPHABET
-% 	Originally from https://gitlab.com/jim.hefferon/linear-algebra
-%----------------------------------------------------------------------------------------
-
-\vspace{1cm}
-
-{\usekomafont{chapter}Greek Letters with Pronunciations} \\[2ex]
-\begin{center}
-	\newcommand{\pronounced}[1]{\hspace*{.2em}\small\textit{#1}}
-	\begin{tabular}{l l @{\hspace*{3em}} l l}
-		\toprule
-		Character & Name & Character & Name \\ 
-		\midrule
-		$\alpha$ & alpha \pronounced{AL-fuh} & $\nu$ & nu \pronounced{NEW} \\
-		$\beta$ & beta \pronounced{BAY-tuh} & $\xi$, $\Xi$ & xi \pronounced{KSIGH} \\ 
-		$\gamma$, $\Gamma$ & gamma \pronounced{GAM-muh} & o & omicron \pronounced{OM-uh-CRON} \\
-		$\delta$, $\Delta$ & delta \pronounced{DEL-tuh} & $\pi$, $\Pi$ & pi \pronounced{PIE} \\
-		$\epsilon$ & epsilon \pronounced{EP-suh-lon} & $\rho$ & rho \pronounced{ROW} \\
-		$\zeta$ & zeta \pronounced{ZAY-tuh} & $\sigma$, $\Sigma$ & sigma \pronounced{SIG-muh} \\
-		$\eta$ & eta \pronounced{AY-tuh} & $\tau$ & tau \pronounced{TOW (as in cow)} \\
-		$\theta$, $\Theta$ & theta \pronounced{THAY-tuh} & $\upsilon$, $\Upsilon$ & upsilon \pronounced{OOP-suh-LON} \\
-		$\iota$ & iota \pronounced{eye-OH-tuh} & $\phi$, $\Phi$ & phi \pronounced{FEE, or FI (as in hi)} \\
-		$\kappa$ & kappa \pronounced{KAP-uh} & $\chi$ & chi \pronounced{KI (as in hi)} \\
-		$\lambda$, $\Lambda$ & lambda \pronounced{LAM-duh} & $\psi$, $\Psi$ & psi \pronounced{SIGH, or PSIGH} \\
-		$\mu$ & mu \pronounced{MEW} & $\omega$, $\Omega$ & omega \pronounced{oh-MAY-guh} \\
-		\bottomrule
-	\end{tabular} \\[1.5ex]
-	Capitals shown are the ones that differ from Roman capitals.
-\end{center}
+\printbibliography[heading=bibintoc, title=Referências] % Add the bibliography heading to the ToC and output the bibliography
 
 %----------------------------------------------------------------------------------------
 %	GLOSSARY
@@ -293,7 +249,7 @@
 % The glossary needs to be compiled on the command line with 'makeglossaries main' from the template directory
 
 \setglossarystyle{listgroup} % Set the style of the glossary (see https://en.wikibooks.org/wiki/LaTeX/Glossary for a reference)
-\printglossary[title=Special Terms, toctitle=List of Terms] % Output the glossary, 'title' is the chapter heading for the glossary, toctitle is the table of contents heading
+\printglossary[title=Glossário, toctitle=Glossário] % Output the glossary, 'title' is the chapter heading for the glossary, toctitle is the table of contents heading
 
 %----------------------------------------------------------------------------------------
 %	INDEX
