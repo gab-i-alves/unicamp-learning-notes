@@ -26,6 +26,34 @@ sistema de venda de obras literárias usadas, o mesmo do mapeamento do
 	uma vez.
 \end{itemize}
 
+\begin{figure*}[h]
+\centering
+\begin{tikzpicture}[
+	tabela/.style={rectangle split, rectangle split parts=2, draw=bdroxo, thick,
+		rectangle split part fill={bdroxo, white}, font=\scriptsize, align=left,
+		inner sep=2pt, text width=31mm},
+	fk/.style={-{Stealth[length=2mm]}, draw=bdazul, thick}]
+	\node[tabela] (cli) at (0,0) {\textcolor{white}{\textbf{cliente}}
+		\nodepart{two} \underline{login}\\ senha, nome, endereco\\ qtd\_obras\_vendidas\\ qtd\_obras\_compradas};
+	\node[tabela] (obr) at (5.2,0) {\textcolor{white}{\textbf{obras\_literarias}}
+		\nodepart{two} \underline{codobra}\\ nome, editora, preco\\ tipo\\ login\_vendedor (FK)\\ data};
+	\node[tabela] (com) at (10.4,0) {\textcolor{white}{\textbf{compra}}
+		\nodepart{two} \underline{codcompra}\\ data\\ login\_comprador (FK)\\ codobra (FK, única)};
+	\node[tabela] (liv) at (3.0,-3.2) {\textcolor{white}{\textbf{livro}}
+		\nodepart{two} \underline{codobra} (FK)\\ ISBN};
+	\node[tabela] (per) at (7.4,-3.2) {\textcolor{white}{\textbf{periodico}}
+		\nodepart{two} \underline{codobra} (FK)\\ numero, volume};
+	\draw[fk] (obr.west) -- node[rotulo, above] {vende} (cli.east);
+	\draw[fk] (com.west) -- node[rotulo, above] {obra} (obr.east);
+	\draw[fk] (com.north) -- ++(0,0.4) -| node[rotulo, above, pos=0.25] {comprador} (cli.north);
+	\draw[fk] (liv.north) -- (liv.north |- obr.south);
+	\draw[fk] (per.north) -- (per.north |- obr.south);
+\end{tikzpicture}
+\caption{Tabelas do esquema da primeira avaliação, desenhadas a partir do
+esquema lógico. As setas vão da chave estrangeira para a tabela
+referenciada; chaves primárias sublinhadas.}
+\end{figure*}
+
 \subsection{Questão 1 (4,0): visão}
 
 Pedido: uma visão que, para cada periódico já comprado, mostre o login e

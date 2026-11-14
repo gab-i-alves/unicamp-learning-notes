@@ -24,6 +24,20 @@ Para ler um dado, um usuário precisa passar por três portas:
 Um login sem usuário no banco conecta ao servidor mas não abre o banco;
 um usuário sem permissão na tabela abre o banco mas não lê a tabela.
 
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+	\node[caixa, fill=white, minimum width=20mm] (p) at (0,0) {pessoa ou\\aplicação};
+	\node[draw=bdroxo, fill=bdroxoclaro, rounded corners, minimum width=74mm, minimum height=36mm] (srv) at (5.6,0) {};
+	\node[rotulo, anchor=north west] at (srv.north west) {servidor: login};
+	\node[draw=bdazul, fill=bdazulclaro, rounded corners, minimum width=54mm, minimum height=24mm] (bd) at (6.3,-0.4) {};
+	\node[rotulo, anchor=north west] at (bd.north west) {banco: usuário};
+	\node[caixa, fill=white, minimum width=36mm] (obj) at (6.6,-0.8) {objetos: permissões\\(select, execute ...)};
+	\draw[seta] (p) -- node[rotulo, above] {conecta} (srv.west);
+\end{tikzpicture}
+\caption{Os três níveis de acesso, de fora para dentro.}
+\end{figure}
+
 \section{Logins e usuários}
 
 \begin{lstlisting}

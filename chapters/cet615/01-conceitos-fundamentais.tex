@@ -35,6 +35,35 @@ evolução:
 	estão gravados.
 \end{enumerate}
 
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=4mm]
+	% 1. dados dentro do programa
+	\node[caixa, minimum width=22mm] (p1) {Programa\\+ dados};
+	\node[rotulo, above=1mm of p1] {1. tudo junto};
+	% 2. sistema de arquivos
+	\node[caixa, right=10mm of p1, yshift=6mm, minimum width=18mm] (a1) {Aplicativo 1};
+	\node[caixa, below=3mm of a1, minimum width=18mm] (a2) {Aplicativo 2};
+	\node[caixaazul, anchor=west] (arq) at ($(a1.east)!0.5!(a2.east) + (8mm,0)$) {Arquivo};
+	\draw[seta] (a1.east) -- (arq.west);
+	\draw[seta] (a2.east) -- (arq.west);
+	\node[rotulo, above=1mm of a1] {2. sistema de arquivos};
+	% 3. SGBD
+	\node[caixa, right=10mm of arq, yshift=6mm, minimum width=18mm] (b1) {Aplicativo 1};
+	\node[caixa, below=3mm of b1, minimum width=18mm] (b2) {Aplicativo 2};
+	\node[caixa, anchor=west, fill=bdroxo, text=white, minimum height=17mm] (sgbd)
+		at ($(b1.east)!0.5!(b2.east) + (8mm,0)$) {SGBD};
+	\node[caixaazul, right=6mm of sgbd] (arq2) {Arquivos};
+	\draw[seta] (b1.east) -- (sgbd.west |- b1.east);
+	\draw[seta] (b2.east) -- (sgbd.west |- b2.east);
+	\draw[seta] (sgbd) -- (arq2);
+	\node[rotulo, above=1mm of b1] {3. SGBD};
+\end{tikzpicture}
+\caption{Três formas de guardar dados. No sistema de arquivos, cada
+aplicativo traz no código as rotinas de acesso; com o SGBD, elas saem dos
+aplicativos.}
+\end{figure}
+
 Um \textbf{SGBD}\index{SGBD} é um software de uso geral para definir,
 construir e manipular bancos de dados de aplicações diferentes. As
 capacidades básicas citadas em aula são:
@@ -128,6 +157,28 @@ O SGBD converte pedidos de um nível para o outro por meio de
 Segundo o livro, a independência física é comum na prática; a lógica é
 mais difícil, porque os programas dependem da estrutura que consultam.
 
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=5mm]
+	\node[caixa] (e1) {Visão do\\atendimento};
+	\node[caixa, right=4mm of e1] (e2) {Visão da\\diretoria};
+	\node[caixa, right=4mm of e2] (e3) {Visão do\\leitor};
+	\node[caixaazul, below=9mm of e2, minimum width=58mm] (c) {Esquema conceitual\\(tabelas, tipos, restrições)};
+	\node[caixaazul, below=9mm of c, minimum width=58mm] (i) {Esquema interno\\(arquivos, páginas, índices)};
+	\node[caixa, below=7mm of i, fill=white] (d) {Dados gravados};
+	\foreach \n in {e1,e2,e3} \draw[seta, <->] (\n.south) -- (\n.south |- c.north);
+	\draw[seta, <->] (c) -- (i);
+	\draw[seta, <->] (i) -- (d);
+	\node[rotulo, right=3mm of e3] {nível externo};
+	\node[rotulo, right=3mm of c] {nível conceitual};
+	\node[rotulo, right=3mm of i] {nível interno};
+	\node[rotulo, align=left] at ($(e3.south)!0.5!(c.north) + (22mm,0)$) {independência\\lógica};
+	\node[rotulo, align=left] at ($(c.south)!0.5!(i.north) + (38mm,0)$) {independência\\física};
+\end{tikzpicture}
+\caption{Arquitetura de três esquemas, com exemplos de visões de uma
+biblioteca. As setas são os mapeamentos entre níveis.}
+\end{figure}
+
 \section{Projeto de banco de dados}
 
 Quatro termos aparecem em todo o projeto:
@@ -173,6 +224,31 @@ Dois alertas feitos em aula\sidecite{BaiocoCET615Aulas}:
 	estruturas de armazenamento e acesso de um SGBD específico, usando a
 	DDL dele. Gera o \emph{esquema físico}.
 \end{enumerate}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=6mm]
+	\node[caixa, fill=white] (mm) {Minimundo};
+	\node[caixa, below=of mm] (req) {Coleta e análise de requisitos};
+	\node[caixaazul, below left=6mm and -6mm of req] (rd) {Requisitos\\de dados};
+	\node[caixaazul, below right=6mm and 6mm of req] (rf) {Requisitos\\funcionais};
+	\node[caixa, below=of rd] (pc) {Projeto conceitual\\(ME-R)};
+	\node[caixa, below=of rf] (tr) {Especificação\\das transações};
+	\node[caixa, below=of pc] (pl) {Projeto lógico\\(modelo relacional)};
+	\node[caixa, below=of pl] (pf) {Projeto físico\\(DDL do SGBD)};
+	\draw[seta] (mm) -- (req);
+	\draw[seta] (req) -- (rd);
+	\draw[seta] (req) -- (rf);
+	\draw[seta] (rd) -- (pc);
+	\draw[seta] (rf) -- (tr);
+	\draw[seta] (pc) -- node[rotulo, right] {esquema conceitual} (pl);
+	\draw[seta] (pl) -- node[rotulo, right] {esquema lógico} (pf);
+	\node[rotulo, left=2mm of pc, align=right] {independe\\do SGBD};
+	\node[rotulo, left=2mm of pl, align=right] {depende do\\tipo de SGBD};
+	\node[rotulo, left=2mm of pf, align=right] {depende do\\fabricante};
+\end{tikzpicture}
+\caption{Fases do projeto de banco de dados.}
+\end{figure}
 
 \section{Projeto conceitual: o ME-R}
 
@@ -243,6 +319,41 @@ relacionamentos não têm chave. Um atributo de relacionamento é o que só
 faz sentido na associação: a nota pertence ao par aluno--disciplina, não
 ao aluno nem à disciplina.
 
+\begin{figure*}[h]
+\centering
+\begin{tikzpicture}
+	\node[entidade] (autor) at (0,0) {Autor};
+	\node[relacionamento] (esc) at (3.4,0) {Escrever};
+	\node[entidade] (livro) at (6.8,0) {Livro};
+	\node[relacionamento] (res) at (10.2,0) {Reservar};
+	\node[entidade] (leitor) at (13.6,0) {Leitor};
+	\draw (autor) -- node[card, above, pos=0.25] {N} (esc);
+	\draw (esc) -- node[card, above, pos=0.75] {M} (livro);
+	\draw (livro) -- node[card, above, pos=0.25] {N} (res);
+	\draw (res) -- node[card, above, pos=0.75] {M} (leitor);
+	% atributos: linha vertical, bolinha e rótulo abaixo da bolinha
+	\draw (autor.south) ++(-5mm,0) -- ++(0,-6mm) node[chave] (a1) {};
+	\node[rotulo, below=0.3mm of a1] {codautor};
+	\draw (autor.south) ++(5mm,0) -- ++(0,-12mm) node[atributo] (a2) {};
+	\node[rotulo, below=0.3mm of a2] {nome};
+	\draw (livro.south) ++(-7mm,0) -- ++(0,-6mm) node[chave] (l1) {};
+	\node[rotulo, below=0.3mm of l1] {codlivro};
+	\draw (livro.south) -- ++(0,-12mm) node[atributo] (l2) {};
+	\node[rotulo, below=0.3mm of l2] {título};
+	\draw (livro.south) ++(7mm,0) -- ++(0,-6mm) node[atributo] (l3) {};
+	\node[rotulo, below=0.3mm of l3] {ISBN};
+	\draw (res.south) -- ++(0,-6mm) node[atributo] (r1) {};
+	\node[rotulo, below=0.3mm of r1] {data};
+	\draw (leitor.south) ++(-5mm,0) -- ++(0,-6mm) node[chave] (le1) {};
+	\node[rotulo, below=0.3mm of le1] {codleitor};
+	\draw (leitor.south) ++(5mm,0) -- ++(0,-12mm) node[atributo] (le2) {};
+	\node[rotulo, below=0.3mm of le2] {nome};
+\end{tikzpicture}
+\caption{ME-R de uma biblioteca. Um autor escreve vários livros e um livro
+pode ter vários autores (N:M); um leitor reserva vários livros, e a data
+da reserva é atributo do relacionamento. Bolinha cheia indica a chave.}
+\end{figure*}
+
 \section{ME-R estendido}
 
 Modelar é escolher entre abstrair (agrupar em algo mais genérico) e
@@ -286,6 +397,31 @@ independentes:
 Na notação da disciplina, a haste dupla entre o genérico e o triângulo
 indica participação total, e a simples indica parcial. O triângulo vazio
 indica exclusão mútua, e o pintado, sobreposição.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+	\node[entidade] (pessoa) at (0,0) {Pessoa};
+	\node[isosceles triangle, isosceles triangle apex angle=60, shape border rotate=90,
+		draw=bdroxo, fill=bdroxo, minimum size=6mm, inner sep=0pt] (tri) at (0,-1.4) {};
+	\draw[double, double distance=1.2pt, thick] (pessoa.south) -- (tri.apex);
+	\node[entidade] (leitor) at (-1.9,-2.8) {Leitor};
+	\node[entidade] (func) at (1.9,-2.8) {Funcionário};
+	\draw (tri.south) -- ++(0,-0.3) -| (leitor.north);
+	\draw (tri.south) -- ++(0,-0.3) -| (func.north);
+	\draw (pessoa.east) -- ++(6mm,0) node[chave] (p1) {};
+	\node[rotulo, right=0.5mm of p1] {cpf};
+	\draw (pessoa.west) -- ++(-6mm,0) node[atributo] (p2) {};
+	\node[rotulo, left=0.5mm of p2] {nome};
+	\draw (leitor.south) -- ++(0,-6mm) node[atributo] (l1) {};
+	\node[rotulo, right=0.5mm of l1] {limite de empréstimos};
+	\draw (func.south) -- ++(0,-6mm) node[atributo] (f1) {};
+	\node[rotulo, right=0.5mm of f1] {matrícula};
+\end{tikzpicture}
+\caption{Generalização com participação total (haste dupla) e sobreposição
+(triângulo pintado): toda pessoa é leitor, funcionário ou os dois. Os
+específicos herdam cpf e nome.}
+\end{figure}
 
 \marginnote{Correspondência de termos: participação total ou parcial =
 \emph{completeness constraint}; exclusão mútua = \emph{disjoint}
@@ -334,6 +470,30 @@ Sobre a escolha da chave:
 No desenho, o retângulo da agregação envolve o losango sem se fundir a
 ele, para que se veja quais hastes ligam ao relacionamento e quais ligam
 ao agregado. A agregação sempre envolve um único relacionamento.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+	\node[entidade] (leitor) at (0,0) {Leitor};
+	\node[relacionamento] (emp) at (3.2,0) {Emprestar};
+	\node[entidade] (ex) at (6.4,0) {Exemplar};
+	\draw (leitor) -- node[card, above, pos=0.3] {N} (emp);
+	\draw (emp) -- node[card, above, pos=0.7] {M} (ex);
+	\node[draw=bdazul, very thick, fit=(emp), inner sep=3mm] (ag) {};
+	\node[rotulo, anchor=north east, font=\scriptsize\bfseries] at (ag.north west) {Empréstimo};
+	\draw (ag.north west) ++(4mm,0) -- ++(0,6mm) node[chave] (k) {};
+	\node[rotulo, above=0.3mm of k] {codempréstimo};
+	\draw (ag.north east) ++(-4mm,0) -- ++(0,6mm) node[atributo] (d) {};
+	\node[rotulo, above=0.3mm of d] {data};
+	\node[relacionamento] (reg) at (3.2,-2.3) {Registrar};
+	\node[entidade] (func) at (6.4,-2.3) {Funcionário};
+	\draw (ag.south) -- node[card, right, pos=0.4] {N} (reg);
+	\draw (reg) -- node[card, above, pos=0.7] {1} (func);
+\end{tikzpicture}
+\caption{Agregação. Cada empréstimo de um exemplar a um leitor ganha chave
+própria e se relaciona com o funcionário que o registrou: um
+relacionamento entre um relacionamento e uma entidade.}
+\end{figure}
 
 \subsection*{Complemento: agregação no Elmasri}
 

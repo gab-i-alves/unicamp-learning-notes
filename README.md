@@ -17,6 +17,25 @@
 
 Resumos das disciplinas da especialização, escritos em LaTeX e sincronizados com o Overleaf. Cada capítulo junta o conteúdo da aula com complementos da bibliografia indicada e da documentação oficial, sempre com a fonte citada na margem.
 
+## Prévia
+
+Os diagramas são desenhados em TikZ, com exemplos próprios.
+
+<p align="center">
+  <img src="images/preview-mer.png" alt="ME-R de uma biblioteca" width="760"><br>
+  <em>ME-R de uma biblioteca (CET 615, capítulo 1)</em>
+</p>
+
+<p align="center">
+  <img src="images/preview-indices.png" alt="Índice clusterizado e não clusterizado" width="760"><br>
+  <em>Índices clusterizado e não clusterizado (capítulo 3)</em>
+</p>
+
+<p align="center">
+  <img src="images/preview-transacao.png" alt="Estados de uma transação" width="420"><br>
+  <em>Estados de uma transação (capítulo 4)</em>
+</p>
+
 ## Disciplinas
 
 | Código | Disciplina | Situação |

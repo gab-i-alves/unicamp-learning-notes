@@ -63,6 +63,27 @@ Por isso um \texttt{rollback} dentro do gatilho desfaz também o comando
 que o disparou, e um \texttt{rollback} em quem executou o comando desfaz
 também o que o gatilho fez.
 
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=4mm]
+	\node[caixa, fill=white] (cmd) {insert into exemplar ...};
+	\node[caixaazul, below=of cmd, minimum width=50mm] (exec) {grava log e altera a tabela};
+	\node[caixaazul, below=of exec, minimum width=50mm] (rest) {verifica restrições (PK, FK, check)};
+	\node[caixa, below=of rest, minimum width=50mm, fill=bdroxo, text=white] (trg) {executa o gatilho};
+	\node[caixaazul, right=6mm of trg, minimum width=18mm] (ins) {inserted\\deleted};
+	\node[caixa, below=of trg, minimum width=50mm] (fim) {commit ou rollback};
+	\draw[seta] (cmd) -- (exec);
+	\draw[seta] (exec) -- (rest);
+	\draw[seta] (rest) -- (trg);
+	\draw[seta] (trg) -- (fim);
+	\draw[seta, dashed] (ins) -- (trg);
+	\node[draw=bdcinza, dashed, fit=(exec)(fim), inner sep=2.5mm,
+		label={[rotulo]left:uma transação}] {};
+\end{tikzpicture}
+\caption{Um gatilho \texttt{after} no SQL Server roda dentro da mesma
+transação do comando, depois das restrições, uma vez por comando.}
+\end{figure}
+
 \subsection{As tabelas \texttt{inserted} e \texttt{deleted}}
 
 Durante o gatilho, o SQL Server oferece duas tabelas lógicas, com a

@@ -283,6 +283,36 @@ from leitor le left join emprestimo e
 where e.codemprestimo is null
 \end{lstlisting}
 
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+	tab/.style={draw=bdcinza, font=\scriptsize, minimum width=17mm, minimum height=5mm, inner sep=1pt},
+	ok/.style={tab, fill=bdazulclaro},
+	nul/.style={tab, fill=white, text=bdcinza}]
+	\node[font=\scriptsize\bfseries] at (0,0.6) {leitor};
+	\node[tab] (a1) at (0,0) {1 Ana};
+	\node[tab, below=0pt of a1] (a2) {2 Bruno};
+	\node[tab, below=0pt of a2] (a3) {3 Carla};
+	\node[font=\scriptsize\bfseries] at (2.3,0.6) {empréstimo};
+	\node[tab] (b1) at (2.3,0) {100 \textrightarrow{} 1};
+	\node[tab, below=0pt of b1] (b2) {101 \textrightarrow{} 3};
+	\node[tab, below=0pt of b2] (b3) {102 \textrightarrow{} 9};
+	% inner
+	\node[font=\scriptsize\bfseries] at (5.2,0.6) {inner join};
+	\node[ok] (i1) at (5.2,0) {Ana | 100};
+	\node[ok, below=0pt of i1] (i2) {Carla | 101};
+	% left
+	\node[font=\scriptsize\bfseries] at (7.5,0.6) {left join};
+	\node[ok] (l1) at (7.5,0) {Ana | 100};
+	\node[nul, below=0pt of l1] (l2) {Bruno | null};
+	\node[ok, below=0pt of l2] (l3) {Carla | 101};
+\end{tikzpicture}
+\caption{Junção interna e externa à esquerda. Bruno não tem empréstimo e
+só aparece no \texttt{left join}, com nulo. O empréstimo 102 aponta para
+um leitor inexistente, situação que a chave estrangeira impediria; ele só
+apareceria num \texttt{right} ou \texttt{full join}.}
+\end{figure}
+
 O \texttt{left join} mantém todas as linhas da tabela da esquerda e
 preenche com nulos o que não tem correspondência; o \texttt{right join}
 faz o mesmo com a da direita, e o \texttt{full join} com as duas. A
@@ -361,6 +391,27 @@ e a específica.
 	\emph{abort}, sinônimos).
 	\item[Encerrada:] o destino de todas, com sucesso ou com falha.
 \end{description}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[estado/.style={caixa, rounded corners=8pt, minimum width=24mm}]
+	\node[estado] (at) at (0,0) {Ativa};
+	\node[estado] (pe) at (5,0) {Parcialmente\\efetivada};
+	\node[estado] (ef) at (5,-2) {Efetivada};
+	\node[estado] (fa) at (0,-2) {Falha};
+	\node[estado, fill=bdroxo, text=white] (en) at (2.5,-3.6) {Encerrada};
+	\draw[seta] (-2.6,0) -- node[rotulo, above] {begin} (at);
+	\draw[seta] (at) -- node[rotulo, above] {última operação} (pe);
+	\draw[seta] (pe) -- node[rotulo, right] {commit} (ef);
+	\draw[seta] (at) -- node[rotulo, left] {erro} (fa);
+	\draw[seta] (pe) -- node[rotulo, above, sloped] {falha} (fa);
+	\draw[seta] (ef) -- (en);
+	\draw[seta] (fa) -- node[rotulo, left] {rollback} (en);
+	\draw[seta] (at) edge[loop above, looseness=5] node[rotulo, above] {leituras e escritas} (at);
+\end{tikzpicture}
+\caption{Estados de uma transação. Com sucesso ou com falha, toda
+transação precisa chegar a encerrada, que libera os bloqueios.}
+\end{figure}
 
 A professora insistiu que toda transação precisa chegar ao estado
 encerrada: uma transação aberta mantém os bloqueios e deixa os outros

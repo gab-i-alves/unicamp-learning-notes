@@ -64,6 +64,30 @@
 \renewcommand{\figurenameshort}{Fig.}
 \renewcommand{\tablenameshort}{Tab.}
 
+% Diagrams: TikZ with a purple and blue palette and shared styles
+\usepackage{tikz}
+\usetikzlibrary{positioning,shapes.geometric,shapes.multipart,arrows.meta,fit,calc,backgrounds}
+\definecolor{bdroxo}{HTML}{5B3CC4}
+\definecolor{bdazul}{HTML}{2F6FD6}
+\definecolor{bdroxoclaro}{HTML}{ECE7FB}
+\definecolor{bdazulclaro}{HTML}{E4EEFC}
+\definecolor{bdcinza}{HTML}{6B6B7B}
+\tikzset{
+	caixa/.style={draw=bdroxo, fill=bdroxoclaro, rounded corners=2pt, align=center,
+		minimum height=7mm, inner sep=4pt, font=\small},
+	caixaazul/.style={caixa, draw=bdazul, fill=bdazulclaro},
+	seta/.style={-{Stealth[length=2mm]}, draw=bdcinza, thick},
+	% ME-R notation used in the course
+	entidade/.style={draw=bdroxo, fill=bdroxoclaro, thick, minimum width=20mm,
+		minimum height=8mm, font=\small\bfseries},
+	relacionamento/.style={diamond, draw=bdazul, fill=bdazulclaro, thick, aspect=2,
+		inner sep=1pt, font=\small},
+	atributo/.style={circle, draw=bdcinza, fill=white, inner sep=0pt, minimum size=1.6mm},
+	chave/.style={atributo, fill=bdcinza},
+	rotulo/.style={font=\scriptsize, text=bdcinza},
+	card/.style={font=\footnotesize\bfseries, text=bdroxo},
+}
+
 \graphicspath{{examples/documentation/images/}{images/}} % Paths in which to look for images
 
 % T-SQL listings: kaolst style, SQL Server keywords and accented characters in comments

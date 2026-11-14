@@ -235,6 +235,27 @@ Cada arquivo tem dois nomes: o \textbf{lógico} (\texttt{name}), usado nos
 comandos T-SQL, e o \textbf{físico} (\texttt{filename}), o caminho no
 sistema operacional.
 
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=3mm]
+	\node[caixa, fill=white, minimum width=16mm] (t1) {leitor};
+	\node[caixa, fill=white, minimum width=16mm, right=of t1] (t2) {livro};
+	\node[caixa, fill=white, minimum width=16mm, right=of t2] (t3) {empréstimo};
+	\node[rotulo, above=1mm of t2] {o que o usuário vê: tabelas};
+	\node[caixaazul, below=10mm of t1, minimum width=18mm] (mdf) {.mdf\\primário};
+	\node[caixaazul, right=of mdf, minimum width=18mm] (ndf) {.ndf\\secundário};
+	\node[draw=bdazul, dashed, fit=(mdf)(ndf), inner sep=2mm, label={[rotulo]below:grupo PRIMARY}] (fg) {};
+	\node[caixa, right=8mm of ndf, minimum width=18mm] (ldf) {.ldf\\log};
+	\node[rotulo, right=1mm of ldf, align=left] {fora de\\grupos};
+	\draw[seta] (t1.south) -- (mdf.north);
+	\draw[seta] (t2.south) -- (mdf.north east);
+	\draw[seta] (t3.south) -- (ndf.north);
+	\node[rotulo, below=7mm of ndf, xshift=10mm] {o que fica no disco: poucos arquivos};
+\end{tikzpicture}
+\caption{Visão lógica e física de um banco. As tabelas se espalham pelos
+arquivos de dados do grupo; o log fica à parte.}
+\end{figure}
+
 \section{Criar, alterar e excluir bancos}
 
 Os três comandos são executados a partir do banco \texttt{master}.

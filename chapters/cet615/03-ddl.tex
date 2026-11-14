@@ -316,6 +316,46 @@ repete demais para valer a pena.
 	haver vários por tabela, e é o tipo padrão do \texttt{create index}.
 \end{description}
 
+\begin{figure*}[h]
+\centering
+\begin{tikzpicture}[
+	pag/.style={draw=bdroxo, fill=bdroxoclaro, minimum width=14mm, minimum height=6mm, font=\scriptsize},
+	dado/.style={draw=bdazul, fill=bdazulclaro, minimum width=14mm, minimum height=6mm, font=\scriptsize},
+	lig/.style={draw=bdcinza}]
+	% clusterizado
+	\node[pag] (r) at (2.25,0) {1 | 40 | 80};
+	\node[pag] (i1) at (0,-1.1) {1 | 20};
+	\node[pag] (i2) at (2.25,-1.1) {40 | 60};
+	\node[pag] (i3) at (4.5,-1.1) {80 | 95};
+	\foreach \n in {i1,i2,i3} \draw[lig] (r.south) -- (\n.north);
+	\node[dado] (d1) at (0,-2.3) {linhas 1--39};
+	\node[dado] (d2) at (2.25,-2.3) {linhas 40--79};
+	\node[dado] (d3) at (4.5,-2.3) {linhas 80--};
+	\foreach \a/\b in {i1/d1,i2/d2,i3/d3} \draw[lig] (\a.south) -- (\b.north);
+	\node[rotulo, align=center] at (2.25,-3.1) {clusterizado: as folhas \emph{são}\\as páginas de dados, em ordem};
+	% não clusterizado
+	\begin{scope}[xshift=8cm]
+	\node[pag] (s) at (2.25,0) {Ana | Lia};
+	\node[pag] (j1) at (0.9,-1.1) {Ana | Bia};
+	\node[pag] (j2) at (3.6,-1.1) {Lia | Rui};
+	\draw[lig] (s.south) -- (j1.north);
+	\draw[lig] (s.south) -- (j2.north);
+	\node[dado] (e1) at (0,-2.3) {pág. 7};
+	\node[dado] (e2) at (1.5,-2.3) {pág. 2};
+	\node[dado] (e3) at (3,-2.3) {pág. 9};
+	\node[dado] (e4) at (4.5,-2.3) {pág. 4};
+	\draw[seta] (j1.south) -- (e1.north);
+	\draw[seta] (j1.south) -- (e3.north);
+	\draw[seta] (j2.south) -- (e2.north);
+	\draw[seta] (j2.south) -- (e4.north);
+	\node[rotulo, align=center] at (2.25,-3.1) {não clusterizado: as folhas \emph{apontam}\\para linhas em outra ordem};
+	\end{scope}
+\end{tikzpicture}
+\caption{Índice clusterizado (pela chave primária) e não clusterizado
+(pelo nome). Só pode haver um clusterizado, porque os dados só têm uma
+ordem física.}
+\end{figure*}
+
 \subsection{Único e composto}
 
 \begin{description}

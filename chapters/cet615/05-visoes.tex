@@ -15,6 +15,22 @@ ou mais tabelas (ou de outras visões). O SGBD guarda apenas a definição;
 os dados continuam nas tabelas. Uma mudança feita nas tabelas aparece
 na visão, e vice-versa.
 
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[tb/.style={caixaazul, minimum width=18mm}]
+	\node[tb] (t1) at (0,0) {leitor};
+	\node[tb] (t2) at (2.4,0) {empréstimo};
+	\node[tb] (t3) at (4.8,0) {livro};
+	\node[draw=bdroxo, very thick, fill=bdroxoclaro, minimum width=62mm, minimum height=9mm,
+		font=\small] (v) at (2.4,-1.8) {emprestimos\_detalhados (só a definição)};
+	\foreach \t in {t1,t2,t3} \draw[seta] (\t.south) -- (\t.south |- v.north);
+	\node[caixa, fill=white] (u) at (2.4,-3.3) {select * from emprestimos\_detalhados};
+	\draw[seta] (u) -- (v);
+\end{tikzpicture}
+\caption{A visão como moldura: guarda só a consulta; os dados vêm das
+tabelas a cada uso.}
+\end{figure}
+
 \subsection{Vantagens}
 
 \begin{itemize}
