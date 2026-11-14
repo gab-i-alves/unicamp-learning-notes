@@ -1,0 +1,179 @@
+\setchapterpreamble[u]{\margintoc}
+\chapter{T-SQL: Visões}
+\labch{cet615-visoes}
+
+Este capítulo cobre a apresentação sobre visões da segunda
+aula\sidecite{BaiocoCET615}. No SSMS em português, as visões aparecem
+como \emph{Exibições}.
+
+\section{O que é uma visão}
+
+Uma \textbf{visão}\index{visão} (\emph{view}) é uma consulta guardada
+com nome, que pode ser usada como se fosse uma tabela. A imagem da aula
+é a de uma moldura: através dela se veem só os dados de interesse de uma
+ou mais tabelas (ou de outras visões). O SGBD guarda apenas a definição;
+os dados continuam nas tabelas. Uma mudança feita nas tabelas aparece
+na visão, e vice-versa.
+
+\subsection{Vantagens}
+
+\begin{itemize}
+	\item \textbf{Segurança.} A visão pode esconder colunas e linhas. Em
+	aula, a professora foi além do slide: em vez de dar ao usuário
+	permissão nas três tabelas de uma consulta, dá-se permissão só na
+	visão. O acesso passa a ser por funcionalidade, e o usuário nunca toca
+	as tabelas.
+	\item \textbf{Simplicidade.} Uma consulta complexa e frequente vira um
+	\texttt{select * from visao}.
+	\item \textbf{Valores calculados e resumos} ficam prontos na visão.
+\end{itemize}
+
+\subsection{Desvantagens}
+
+\begin{itemize}
+	\item O desempenho é o do \texttt{select} que define a visão. Se a
+	visão tem junção, a junção roda mesmo quando a consulta só precisa de
+	colunas de uma das tabelas.
+	\item Alterar dados por meio de visões tem restrições (veja adiante).
+\end{itemize}
+
+A professora corrigiu a leitura do slide: a visão em si não é ruim para
+o desempenho. O problema é usá-la quando a junção dela não é necessária.
+
+\section{Criar, usar, alterar e excluir}
+
+\begin{lstlisting}[caption={Visão sobre o banco de biblioteca.}]
+create view emprestimos_detalhados (leitor, livro, data_emprestimo)
+as
+select le.nome, l.titulo, e.data
+from leitor le inner join emprestimo e
+     on le.codleitor = e.codleitor
+     inner join livro l
+     on e.codlivro = l.codlivro
+go
+
+select * from emprestimos_detalhados
+where data_emprestimo >= '2026-11-01'
+\end{lstlisting}
+
+\begin{itemize}
+	\item A visão é criada no banco em uso, e o \texttt{create view} precisa
+	ser o primeiro comando do lote (\refch{cet615-sqlserver}).
+	\item Os nomes das colunas vão na lista do \texttt{create view} ou como
+	apelidos no \texttt{select}. São obrigatórios quando duas colunas
+	teriam o mesmo nome (dois \texttt{nome} numa junção) e em colunas
+	calculadas.
+	\item Para criar uma visão, basta saber escrever o \texttt{select}. A
+	recomendação é testar o \texttt{select} antes de transformá-lo em
+	visão.
+	\item O uso ideal é \texttt{select * from visao}, com \texttt{where}
+	quando preciso. Um critério que muda com o tempo, como um intervalo de
+	datas, fica fora da visão, no \texttt{where} de quem a consulta.
+\end{itemize}
+
+\begin{lstlisting}
+alter view emprestimos_detalhados (leitor, livro, data_emprestimo)
+as
+select ...   -- o select inteiro precisa ser reescrito
+
+exec sp_helptext emprestimos_detalhados   -- mostra a definição
+
+drop view emprestimos_detalhados
+\end{lstlisting}
+
+O \texttt{alter view} substitui a definição e mantém as permissões já
+concedidas. O \texttt{drop} seguido de \texttt{create} perde as
+permissões. Por isso o \texttt{alter} só faz sentido com o sistema em
+produção; em projeto, apagar e recriar resolve.
+
+\subsection{O antipadrão demonstrado em aula}
+
+A professora mostrou de propósito o uso errado. Para listar só os nomes
+dos fornecedores, ela consultou a visão de fornecedores e produtos. O
+resultado veio com nomes repetidos, sinal de que a junção estava sendo
+executada. Um \texttt{distinct} ``resolve'', mas a forma certa é
+consultar a tabela \texttt{fornecedor} diretamente. Já o filtro pelo
+nome do produto faz sentido na visão, porque a junção é necessária para
+chegar a ele.
+
+\begin{lstlisting}
+-- antipadrão: junção desnecessária, remendada com distinct
+select distinct leitor from emprestimos_detalhados
+
+-- certo
+select nome from leitor
+\end{lstlisting}
+
+\section{Alterar dados por meio de visões}
+
+Segundo os slides, uma visão só é atualizável se o seu \texttt{select}:
+
+\begin{itemize}
+	\item não tem funções de agregação na lista de seleção;
+	\item não tem colunas calculadas a partir de outras;
+	\item referencia pelo menos uma tabela no \texttt{from}. Uma visão como
+	\texttt{select getdate() as hoje} nunca é atualizável.
+\end{itemize}
+
+E os comandos têm restrições:
+
+\begin{itemize}
+	\item \texttt{insert} e \texttt{update} só podem alterar uma das
+	tabelas do \texttt{from};
+	\item o \texttt{insert} precisa satisfazer todas as colunas
+	\texttt{not null} das tabelas, mesmo as que não aparecem na visão.
+	Como a visão é só uma moldura, a coluna obrigatória que ficou de fora
+	fica sem valor, e a inserção falha;
+	\item \texttt{delete} não é permitido em visão com mais de uma tabela.
+\end{itemize}
+
+A conclusão da professora é que \emph{visão serve para consulta}. Para
+usar \texttt{insert} ou \texttt{update} por uma visão, o usuário
+precisaria conhecer o \texttt{select} dela para saber em que tabela está
+mexendo. E incluir na visão todas as colunas obrigatórias, para o
+\texttt{insert} funcionar, desfaz o objetivo de segurança. Para escrita,
+há saídas melhores: outro usuário com permissão nas tabelas ou um
+procedimento armazenado (\refch{cet615-procedimentos}).
+
+\subsection*{Complemento: como o SGBD executa uma visão}
+
+\textcite[seção 5.3.3]{Elmasri2011} descreve duas estratégias de
+implementação. Na \textbf{modificação de consulta}, o SGBD reescreve a
+consulta sobre a visão como uma consulta sobre as tabelas de base. Na
+\textbf{materialização}, ele grava o resultado da visão numa tabela e a
+mantém atualizada de forma incremental enquanto ela é usada.
+
+No SQL Server, a visão comum segue a primeira estratégia: a
+documentação\sidecite{MSCreateView} diz que uma operação sobre a visão é
+validada e traduzida em uma operação sobre as tabelas de base. Só a
+\emph{visão indexada} guarda dados. Isso reforça o ponto da professora:
+o custo de usar uma visão é o custo do \texttt{select} que ela esconde.
+
+O livro também explica por que a atualização por visão é restrita: numa
+visão com junção, uma mesma alteração pode corresponder a várias
+alterações diferentes nas tabelas de base, e o SGBD não tem como saber
+qual foi a pretendida.
+
+\subsection*{Complemento: opções do \texttt{create view}}
+
+A documentação\sidecite{MSCreateView} traz recursos que a aula não
+cobre:
+
+\begin{description}
+	\item[\texttt{with check option}:] impede que uma alteração feita pela
+	visão produza uma linha que a própria visão deixaria de mostrar.
+	\item[\texttt{with schemabinding}:] amarra a visão às tabelas; elas não
+	podem ser alteradas de um jeito que afete a visão, nem apagadas antes
+	dela. É pré-requisito da visão indexada.
+	\item[\texttt{order by}:] não é aceito na definição, a não ser com
+	\texttt{top}, e mesmo assim não garante a ordem do resultado. A ordem
+	vai na consulta sobre a visão.
+	\item[Gatilhos \texttt{instead of}:] tornam atualizável uma visão que
+	não seria, porque o gatilho decide o que fazer com cada alteração
+	(\refch{cet615-gatilhos}).
+\end{description}
+
+A documentação também atualiza um detalhe do slide: o texto da visão,
+que o \texttt{sp\_helptext} mostra, fica na visão de catálogo
+\texttt{sys.sql\_modules}; \texttt{syscomments} é uma visão de
+compatibilidade.

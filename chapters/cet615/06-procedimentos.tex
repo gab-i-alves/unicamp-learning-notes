@@ -1,0 +1,299 @@
+\setchapterpreamble[u]{\margintoc}
+\chapter{T-SQL: Procedimentos Armazenados e Transações}
+\labch{cet615-procedimentos}
+
+Este capítulo cobre a última apresentação da segunda
+aula\sidecite{BaiocoCET615}: procedimentos armazenados e o uso deles
+para encapsular transações. É o conteúdo da questão 2 da primeira
+avaliação (\refch{cet615-avaliacoes}).
+
+\section{O que é um procedimento armazenado}
+
+Um \textbf{procedimento armazenado}\index{procedimento armazenado}
+(\emph{stored procedure}) é um conjunto de comandos SQL compilado e
+guardado no servidor, dentro de um banco. A analogia da aula é a de uma
+rotina de linguagem de programação: a lógica fica no banco, e a
+aplicação só chama procedimentos e visões, com o mínimo de SQL escrito
+nela.
+
+Vantagens:
+
+\begin{itemize}
+	\item \textbf{Encapsulamento.} Rotinas frequentes ficam disponíveis
+	para todas as aplicações, em vez de reescritas em cada uma.
+	\item \textbf{Menos erros.} Em tese, os procedimentos já foram
+	testados. Em aula, a professora disse esperar que sim na prática, e
+	que pelo menos os erros ficam mais fáceis de localizar.
+	\item \textbf{Segurança.} O acesso fica limitado ao que o
+	procedimento faz, não importa quantas tabelas ele use. Com visões e
+	procedimentos, a permissão é dada por funcionalidade, como a interface
+	libera ou bloqueia uma opção, e não por tabela.
+\end{itemize}
+
+No SSMS em português, os procedimentos ficam em \emph{Programação}
+$\rightarrow$ \emph{Procedimentos Armazenados}.
+
+\section{Criar e executar}
+
+\begin{lstlisting}[caption={Busca de livros por parte do título.}]
+create procedure busca_livro
+@trecho varchar(60)
+as
+select codlivro, titulo
+from livro
+where titulo like '%' + @trecho + '%'
+go
+
+exec busca_livro 'casmurro'
+execute busca_livro @trecho = 'casmurro'   -- passagem por nome
+\end{lstlisting}
+
+O parâmetro é \texttt{varchar} de propósito. Um \texttt{char(60)} viria
+completado com espaços à direita, e \texttt{'\%' + @trecho + '\%'}
+procuraria o trecho seguido de brancos. Os parâmetros que vão para
+colunas, porém, devem ter o mesmo tipo da coluna.
+
+A passagem pode ser posicional ou por nome. Depois que a chamada começa
+a passar parâmetros por nome, os seguintes também precisam ser por nome.
+Um \texttt{varchar} vai entre aspas na chamada.
+
+Quando a consulta tem vários parâmetros (por exemplo, montar o padrão do
+\texttt{like}), a professora considera o procedimento melhor que a
+visão: ele recebe os valores e monta o \texttt{where} por dentro, em vez
+de exigir um \texttt{where} de quem consulta a visão.
+
+\subsection{Valor padrão}
+
+\begin{lstlisting}
+create procedure busca_livro2
+@trecho varchar(60) = '%'
+as
+select codlivro, titulo from livro where titulo like @trecho
+go
+
+exec busca_livro2            -- sem argumento: traz todos
+exec busca_livro2 'Dom%'
+\end{lstlisting}
+
+É por causa de valores padrão que alguns procedimentos do sistema
+funcionam com ou sem parâmetro.
+
+\subsection{Parâmetro de saída}
+
+\begin{lstlisting}
+create procedure titulo_do_livro
+@codlivro int,
+@titulo char(60) output       -- devolvido a quem chamou
+as
+select @titulo = titulo from livro where codlivro = @codlivro
+go
+
+declare @t char(60)
+exec titulo_do_livro 10, @t output   -- output também na chamada
+print @t
+\end{lstlisting}
+
+O parâmetro \texttt{output} é passado por referência. A ideia é não
+mostrar o resultado na tela de dentro do procedimento e sim devolvê-lo
+numa variável. A variável é atribuída no próprio \texttt{select}
+(\texttt{select @titulo = titulo ...}). Quem chama declara uma variável
+do mesmo tipo e escreve \texttt{output} também no \texttt{exec}. Sem o
+\texttt{print}, nada aparece.
+
+\subsection{Valor de retorno}
+
+\begin{lstlisting}
+create procedure conta_livros
+@trecho varchar(60)
+as
+select codlivro, titulo from livro where titulo like '%' + @trecho + '%'
+return @@rowcount
+go
+
+declare @r int
+exec @r = conta_livros 'amor'
+print @r
+\end{lstlisting}
+
+\begin{itemize}
+	\item O \texttt{return} só devolve \textbf{inteiro}. Serve para status
+	(sucesso ou falha), não para devolver o valor de uma coluna; para isso
+	existe o \texttt{output}.
+	\item O \texttt{return} encerra o procedimento ali mesmo, inclusive
+	dentro de um \texttt{if}.
+	\item O retorno é opcional: o procedimento funciona igual sem ele. Para
+	usá-lo, declara-se uma variável e executa-se o bloco inteiro
+	(\texttt{declare}, \texttt{exec @r = ...}, \texttt{print}).
+	\item \texttt{print} aparece na aba \emph{Mensagens} do SSMS;
+	\texttt{select @r} aparece na aba \emph{Resultados}, como uma
+	consulta.
+\end{itemize}
+
+\subsection{Alterar e excluir}
+
+\begin{lstlisting}
+alter procedure busca_livro
+@trecho varchar(60) = '%'
+as
+select codlivro, titulo from livro where titulo like '%' + @trecho + '%'
+go
+
+exec sp_helptext busca_livro           -- mostra o código
+exec sp_rename 'busca_livro', 'procura_livro'
+drop procedure procura_livro, busca_livro2
+\end{lstlisting}
+
+Como na visão, o \texttt{alter} substitui a definição e mantém as
+permissões.
+
+\section{Procedimentos com transação}
+
+O uso principal na disciplina: encapsular uma transação num
+procedimento que devolve 1 em caso de sucesso e 0 em caso de falha. O
+padrão é o do \refch{cet615-dml}, com um \texttt{return} em cada ramo.
+
+\begin{lstlisting}[caption={Cadastro de livro com exemplar: obra genérica e específica numa transação.}]
+create procedure ins_livro_exemplar
+@codlivro int,
+@titulo char(60),
+@isbn numeric(13,0),
+@codautor int,
+@codexemplar int
+as
+begin transaction
+insert into livro (codlivro, titulo, isbn, codautor)
+values (@codlivro, @titulo, @isbn, @codautor)
+if @@rowcount > 0               /* livro inserido */
+begin
+   insert into exemplar (codexemplar, codlivro, estado)
+   values (@codexemplar, @codlivro, 'N')   -- estado fixo: novo
+   if @@rowcount > 0            /* exemplar inserido */
+   begin
+      commit transaction
+      return 1
+   end
+   else
+   begin
+      rollback transaction
+      return 0
+   end
+end
+else
+begin
+   rollback transaction
+   return 0
+end
+go
+
+declare @ret int
+exec @ret = ins_livro_exemplar 10, 'Dom Casmurro', 9788535910663, 1, 100
+print @ret
+\end{lstlisting}
+
+\subsection{Como projetar os parâmetros}
+
+A professora deu atenção especial a esse ponto:
+
+\begin{itemize}
+	\item \textbf{A chave vai uma vez só.} \texttt{@codlivro} serve para as
+	duas tabelas. Passar o código duas vezes abre a chance de chegarem
+	valores diferentes, um erro que ela provocou de propósito na transação
+	sem procedimento.
+	\item \textbf{O que é fixo não é parâmetro.} O tipo da especialização
+	(0 para pessoa física, 0 para livro) e o estado inicial são escritos
+	no próprio procedimento. Como parâmetro, só abririam espaço para erro.
+	\item \textbf{Um procedimento por especialização.} Juntar o cadastro de
+	pessoa física e jurídica num só (``a mania de querer aproveitar'')
+	deixaria metade dos parâmetros nula em cada chamada. Para exclusão,
+	um procedimento único faz sentido: basta o código, e o procedimento
+	descobre o tipo.
+	\item \textbf{A transação é a menor possível.} O que não precisa estar
+	junto fica de fora. Por isso a avaliação diz que o vendedor já está
+	cadastrado: cadastrar cliente é outra transação.
+	\item \textbf{A ordem dos \texttt{insert} segue as chaves
+	estrangeiras.} Primeiro a linha referenciada (a obra genérica), depois
+	a que referencia (a específica).
+\end{itemize}
+
+\subsection{Por que um \texttt{return} em cada ramo}
+
+Não dá para escrever um único \texttt{return @@rowcount} no fim, porque
+o \texttt{@@rowcount} muda a cada comando. A documentação\sidecite{MSRowcount}
+detalha: comandos DML gravam nele o número de linhas afetadas; comandos
+como \texttt{print}, \texttt{begin transaction} e \texttt{commit
+transaction} o zeram; atribuições simples o deixam em 1. Depois do
+\texttt{commit}, ele já vale 0. A regra prática é testar o
+\texttt{@@rowcount} logo depois do comando que interessa, ou guardá-lo
+numa variável. Com \texttt{return} junto do \texttt{commit} ou do
+\texttt{rollback}, o bloco \texttt{begin ... end} passa a ser
+obrigatório em cada ramo.
+
+\subsection{Procedimentos que chamam procedimentos}
+
+Um procedimento pode executar outro. No exemplo da aula, um
+procedimento de transação completa cadastra um cliente pessoa física e
+duas contas (corrente e poupança) chamando os procedimentos menores e
+testando o retorno de cada um:
+
+\begin{lstlisting}
+declare @retorno int
+begin transaction
+exec @retorno = ins_pessoa_fisica ...
+if @retorno > 0
+begin
+   exec @retorno = ins_conta ... 0 ...   -- corrente
+   if @retorno > 0
+   begin
+      exec @retorno = ins_conta ... 1 ...  -- poupança
+      if @retorno > 0 commit transaction
+      else rollback transaction
+   end
+   else rollback transaction
+end
+else rollback transaction
+return @retorno
+\end{lstlisting}
+
+Aqui o \texttt{return @retorno} pode ficar no fim, porque
+\texttt{@retorno} é uma variável comum e não muda sozinha. Modularizar
+encurta o procedimento maior, e os menores já foram testados. Em
+compensação, uma transação grande trava mais o banco, e a recomendação
+continua sendo mantê-las enxutas.
+
+\subsection*{Complemento: \texttt{rollback} dentro de procedimento aninhado}
+
+A aula não tratou deste ponto, e ele afeta o exemplo acima no caminho de
+falha. O SQL Server não tem transações aninhadas
+independentes\sidecite{MSRollback}:
+
+\begin{itemize}
+	\item cada \texttt{begin transaction} soma 1 em
+	\texttt{@@trancount}, e o \texttt{commit} de uma transação interna só
+	subtrai 1. Quem efetiva de fato é o \texttt{commit} mais externo;
+	\item um \texttt{rollback} sem ponto de salvamento desfaz tudo até o
+	\texttt{begin transaction} mais externo e zera
+	\texttt{@@trancount}, mesmo que tenha sido executado dentro do
+	procedimento chamado;
+	\item se o procedimento termina com \texttt{@@trancount} diferente do
+	valor com que começou, o SQL Server emite uma mensagem informativa.
+\end{itemize}
+
+Na prática: se \texttt{ins\_conta} falha e executa \texttt{rollback}, a
+transação inteira, inclusive o cliente já inserido, é desfeita ali. O
+procedimento externo recebe 0 e executa o seu \texttt{rollback}, mas não
+há mais transação aberta para desfazer. No caminho de sucesso, o exemplo
+funciona como esperado. Uma forma de evitar o problema é o procedimento
+interno só abrir transação quando \texttt{@@trancount} for 0.
+
+\subsection*{Complemento: procedimentos no padrão SQL}
+
+\textcite[seção 13.4]{Elmasri2011} apresenta os procedimentos
+armazenados do padrão SQL/PSM (\emph{Persistent Stored Modules}), com
+parâmetros \texttt{in}, \texttt{out} e \texttt{inout} e comandos de
+controle de fluxo. Além do reuso por várias aplicações, que a aula
+também cita, o livro aponta duas vantagens: menos tráfego entre cliente
+e servidor, porque o processamento fica no servidor, e a possibilidade
+de verificar regras complexas demais para as restrições declarativas. O
+livro observa ainda que muitos SGBDs comerciais aceitam procedimentos
+escritos em linguagens de uso geral. O \texttt{output} do T-SQL
+corresponde ao \texttt{out} e ao \texttt{inout} do padrão.

@@ -1,0 +1,245 @@
+\setchapterpreamble[u]{\margintoc}
+\chapter{T-SQL: Controle de Dados (DCL)}
+\labch{cet615-dcl}
+
+Este capítulo cobre a última apresentação da
+disciplina\sidecite{BaiocoCET615}: controle de acesso, cópia de
+segurança e agendamento de tarefas. A aula tratou o tema como uma revisão
+rápida; ele volta com profundidade nas disciplinas de segurança e de
+administração de bancos. A transcrição dessa aula ainda não foi
+incorporada.
+
+\section{Três níveis de acesso}
+
+Para ler um dado, um usuário precisa passar por três portas:
+
+\begin{enumerate}
+	\item \textbf{Servidor:} um \emph{login} permite conectar à instância.
+	\item \textbf{Banco:} um \emph{user} (usuário do banco), ligado ao
+	login, permite entrar em um banco específico.
+	\item \textbf{Objetos:} \emph{permissões} dizem o que o usuário pode
+	fazer com cada tabela, visão ou procedimento.
+\end{enumerate}
+
+Um login sem usuário no banco conecta ao servidor mas não abre o banco;
+um usuário sem permissão na tabela abre o banco mas não lê a tabela.
+
+\section{Logins e usuários}
+
+\begin{lstlisting}
+use master
+go
+create login leitor_app
+with password = 'Senha#Forte2026', default_database = biblioteca
+go
+alter login leitor_app with password = 'Outra#Senha2026'
+drop login leitor_app
+
+use biblioteca
+go
+create user app_biblioteca for login leitor_app
+drop user app_biblioteca
+\end{lstlisting}
+
+Sem \texttt{default\_database}, o banco padrão do login é o
+\texttt{master}. Os procedimentos antigos (\texttt{sp\_addlogin},
+\texttt{sp\_adduser}, \texttt{sp\_droplogin} e outros) foram substituídos
+por esses comandos a partir do SQL Server 2005. Tudo isso também pode ser
+feito pelo SSMS, em \emph{Security}.
+
+\section{Papéis (\emph{roles})}
+
+Um \textbf{papel}\index{role} agrupa quem precisa das mesmas permissões.
+Quem entra no papel herda as permissões dele, o que simplifica a
+administração. Há dois tipos:
+
+\begin{description}
+	\item[Papéis de servidor:] agrupam logins e dão permissões
+	administrativas. O \texttt{sysadmin}, por exemplo, pode tudo na
+	instância. Desde o SQL Server 2012 é possível criar papéis de servidor
+	próprios (\texttt{create server role}).
+	\item[Papéis de banco:] agrupam usuários de um banco. Há papéis
+	prontos, como \texttt{db\_owner} (controle total do banco), e é
+	possível criar novos com \texttt{create role}. Todo usuário pertence
+	automaticamente ao papel \texttt{public}.
+\end{description}
+
+\begin{lstlisting}
+alter server role sysadmin add member leitor_app   -- login
+alter server role sysadmin drop member leitor_app
+
+use biblioteca
+create role atendentes
+alter role atendentes add member app_biblioteca    -- usuário
+alter role atendentes drop member app_biblioteca
+drop role atendentes
+\end{lstlisting}
+
+\section{Permissões}
+
+Permissões definem quem pode fazer o quê, em três níveis:
+
+\begin{description}
+	\item[Servidor:] vêm principalmente dos papéis de servidor; desde o
+	SQL Server 2012 também podem ser dadas diretamente a um login.
+	\item[Banco:] criar objetos, fazer backup do banco ou do log. Vêm dos
+	papéis de banco ou de \texttt{grant} direto.
+	\item[Objeto:] consultar, inserir, alterar e excluir dados de uma
+	tabela, executar um procedimento.
+\end{description}
+
+\begin{lstlisting}
+-- banco
+grant create table, create view to app_biblioteca
+revoke create table, create view from app_biblioteca
+
+-- objeto
+grant select, insert on emprestimo to atendentes
+grant execute on ins_livro_exemplar to atendentes
+revoke insert on emprestimo from atendentes
+deny delete on emprestimo to atendentes
+\end{lstlisting}
+
+\begin{description}
+	\item[\texttt{grant}] concede a permissão.
+	\item[\texttt{revoke}] retira uma permissão concedida \emph{ou
+	negada} antes; o usuário volta ao estado neutro e pode ainda receber
+	a permissão por um papel.
+	\item[\texttt{deny}] nega explicitamente. A negação tem precedência:
+	quem tem \texttt{deny} não recebe a permissão nem por papel.
+\end{description}
+
+O slide escreve \texttt{revoke ... to}; a documentação aceita
+\texttt{to} e \texttt{from} nesse comando\sidecite{MSRevoke}, e
+\texttt{from} lê melhor.
+
+Este é o mecanismo por trás da ``segurança por funcionalidade'' dos
+capítulos de visões e procedimentos: em vez de dar \texttt{select} nas
+tabelas, dá-se \texttt{select} na visão ou \texttt{execute} no
+procedimento, e o usuário nunca toca as tabelas.
+
+\subsection*{Complemento: exceções à precedência do \texttt{deny}}
+
+A documentação registra uma exceção mantida por compatibilidade: um
+\texttt{deny} na tabela inteira não prevalece sobre um \texttt{grant} em
+uma coluna específica dela\sidecite{MSRevoke}. Também registra que a
+forma \texttt{revoke all} está obsoleta; o certo é revogar permissões
+específicas.
+
+\subsection*{Complemento: propagação de permissões}
+
+\textcite[seção 24.2]{Elmasri2011} trata o controle de acesso
+discricionário do padrão SQL. Quem recebe uma permissão \texttt{with
+grant option} pode repassá-la a outros. Ao revogar, o SGBD precisa
+retirar também as permissões que foram repassadas a partir dela. No SQL
+Server, isso exige \texttt{revoke grant option for ... cascade}; sem o
+\texttt{cascade}, o \texttt{revoke} falha quando a permissão foi
+concedida com \texttt{grant option}\sidecite{MSRevoke}. O mesmo capítulo
+apresenta o controle de acesso baseado em papéis (seção 24.3), que é o
+modelo dos \emph{roles} do SQL Server.
+
+\section{Esquemas}
+
+Um \textbf{esquema}\index{esquema (schema)} (\emph{schema}) agrupa
+objetos de um banco que têm o mesmo dono, um usuário ou um papel. Os
+donos passam a ser donos de esquemas, e não de cada objeto. Permissões
+podem ser dadas no esquema inteiro. Dentro de um esquema, nomes de
+objetos não se repetem. O nome completo de um objeto é
+\texttt{servidor.banco.esquema.objeto}. Trocar o dono de um esquema não
+muda esse nome.
+
+\begin{lstlisting}
+grant select on schema :: dbo to atendentes
+\end{lstlisting}
+
+\section{Cópia de segurança e recuperação}
+
+A estratégia depende do valor da informação: o banco precisa ficar no ar
+24 horas por dia? Quanto tempo de parada se aceita depois de uma falha?
+As possibilidades citadas na aula:
+
+\begin{description}
+	\item[Espelhamento (\emph{mirroring}):] os dados ficam duplicados em
+	dois servidores; se um falha, o outro assume.
+	\item[Instantâneos (\emph{snapshots}):] cópias do banco em intervalos
+	curtos.
+	\item[Backup e restore:] cópias para restauração posterior.
+\end{description}
+
+\subsection{Tipos de backup}
+
+\begin{description}
+	\item[Completo (\emph{full}):] o banco inteiro. É o mais lento.
+	\item[Diferencial:] só as páginas alteradas desde o último completo.
+	\item[Do log de transações:] só o log.
+\end{description}
+
+Duas estratégias básicas:
+
+\begin{itemize}
+	\item \textbf{Só o banco}, pelo menos diariamente. O que mudou desde o
+	último backup se perde numa falha.
+	\item \textbf{Banco e log.} O completo é menos frequente (por exemplo,
+	semanal), e o log é copiado várias vezes por dia. Na recuperação,
+	restaura-se o último completo e depois todos os backups de log, em
+	ordem cronológica. O diferencial encurta essa sequência.
+\end{itemize}
+
+O \texttt{master} deve ter backup regular e também logo depois de criar,
+alterar ou excluir bancos, logins, usuários, papéis ou permissões.
+
+\begin{lstlisting}
+backup database biblioteca to disk = 'C:\backup\biblioteca.bak'
+backup log biblioteca to disk = 'C:\backup\biblioteca_log.trn'
+
+restore database biblioteca from disk = 'C:\backup\biblioteca.bak'
+   with norecovery          -- ainda virão logs
+restore log biblioteca from disk = 'C:\backup\biblioteca_log.trn'
+   with recovery            -- último passo: o banco volta ao ar
+\end{lstlisting}
+
+No SSMS: botão direito no banco $\rightarrow$ \emph{Tasks} $\rightarrow$
+\emph{Back Up} ou \emph{Restore}. A aula cita duas novidades do SQL Server
+2005: a restauração parcial, que deixa o banco disponível assim que o
+grupo de arquivos primário é restaurado, e o backup do log em paralelo
+com o backup completo.
+
+\subsection*{Complemento: modelos de recuperação}
+
+O que pode ser copiado depende do \textbf{modelo de recuperação} do
+banco\sidecite{MSRecoveryModels}:
+
+\begin{description}
+	\item[Simples:] não permite backup de log. O SQL Server reaproveita o
+	espaço do log sozinho. Numa falha, perde-se o que mudou desde o
+	último backup.
+	\item[Completo (\emph{full}):] exige backup de log, e o log cresce até
+	que ele seja feito. Permite restaurar até um ponto exato no tempo,
+	por exemplo antes de um erro de um usuário.
+	\item[\emph{Bulk-logged}:] variação do completo que registra pouco as
+	cargas em massa; não permite restaurar até um ponto no tempo.
+\end{description}
+
+As edições Enterprise e Standard usam o modelo completo por padrão; a
+Express usa o simples. A estratégia ``banco e log'' da aula só funciona
+no modelo completo ou no \emph{bulk-logged}. Isso explica também o
+alerta do \refch{cet615-sqlserver} sobre logs que crescem demais: no
+modelo completo, sem backup de log, o log não é truncado.
+
+\subsection*{Complemento: o espelhamento está obsoleto}
+
+A documentação marca o espelhamento de banco para remoção em versão
+futura e recomenda os grupos de disponibilidade \emph{Always On} para
+alta disponibilidade\sidecite{MSMirroring}. O espelhamento também só
+funciona com o modelo de recuperação completo.
+
+\section{Agendamento de tarefas (\emph{jobs})}
+
+Um \textbf{job}\index{job} é uma tarefa administrativa, com um ou mais
+passos, executada automaticamente em datas e horários definidos: backups,
+manutenção de índices e outras rotinas do DBA. Também pode ser criado
+sem agendamento, para execução manual. Os jobs dependem do serviço
+\emph{SQL Server Agent} e ficam guardados no banco \texttt{msdb}
+(\refch{cet615-sqlserver}). No SSMS: \emph{SQL Server Agent}
+$\rightarrow$ \emph{Jobs} $\rightarrow$ \emph{New Job}, com as abas
+\emph{Steps} (passos) e \emph{Schedules} (agendamento).

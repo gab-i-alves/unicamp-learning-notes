@@ -1,0 +1,244 @@
+\setchapterpreamble[u]{\margintoc}
+\chapter{T-SQL: Gatilhos}
+\labch{cet615-gatilhos}
+
+Este capítulo cobre a apresentação sobre gatilhos da terceira
+aula\sidecite{BaiocoCET615}. Ele foi escrito a partir dos slides, do
+script da aula, do livro e da documentação; a transcrição dessa aula
+ainda não foi incorporada.
+
+\section{O que é um gatilho}
+
+Um \textbf{gatilho}\index{gatilho} (\emph{trigger}) é um conjunto de
+comandos SQL ligado a uma tabela e executado automaticamente pelo SGBD
+quando os dados dela mudam por \texttt{insert}, \texttt{update} ou
+\texttt{delete}. Pode ser visto como um procedimento armazenado sem
+parâmetros, que ninguém chama: ele dispara sozinho a cada comando a que
+está associado. Gatilhos servem para verificar ou modificar dados, e não
+para devolver dados ao usuário com \texttt{select}.
+
+Usos convencionais citados na aula:
+
+\begin{itemize}
+	\item manter integridade que os recursos declarativos não cobrem
+	(\texttt{unique}, \texttt{primary key}, \texttt{not null},
+	\texttt{foreign key});
+	\item propagar modificações entre tabelas relacionadas;
+	\item manter valores derivados, como o total de uma nota fiscal
+	calculado a partir dos itens.
+\end{itemize}
+
+\subsection{Bancos de dados ativos}
+
+Os gatilhos também implementam \textbf{bancos de dados ativos}: bancos
+que, além de guardar dados e executar transações, reagem a eventos. As
+reações são regras ativas no modelo \textbf{evento--condição--ação}:
+
+\begin{lstlisting}[language={},numbers=none]
+on evento    -- a modificação que dispara a regra
+if condição  -- teste opcional
+then ação    -- o que fazer
+\end{lstlisting}
+
+\textcite[seção 26.1]{Elmasri2011} descreve o mesmo modelo: o evento
+costuma ser uma atualização no banco, mas pode ser um evento de tempo
+(``todo dia às 5h30'') ou externo; a condição é opcional; e a ação pode
+ser uma sequência de comandos SQL, uma transação ou um programa externo.
+
+\section{Funcionamento no SQL Server}
+
+Cada comando SQL é uma transação. Quando a tabela tem um gatilho para
+aquele comando, a transação é estendida com o código do gatilho. Um
+\texttt{delete} passa a valer como:
+
+\begin{lstlisting}[language={},numbers=none]
+begin transaction
+   grava o log
+   remove as linhas
+   executa o gatilho de exclusão
+commit ou rollback
+\end{lstlisting}
+
+Por isso um \texttt{rollback} dentro do gatilho desfaz também o comando
+que o disparou, e um \texttt{rollback} em quem executou o comando desfaz
+também o que o gatilho fez.
+
+\subsection{As tabelas \texttt{inserted} e \texttt{deleted}}
+
+Durante o gatilho, o SQL Server oferece duas tabelas lógicas, com a
+mesma estrutura da tabela do gatilho, que podem ser consultadas com
+\texttt{select}:
+
+\begin{description}
+	\item[\texttt{inserted}:] as linhas novas de um \texttt{insert}, ou os
+	valores novos de um \texttt{update}.
+	\item[\texttt{deleted}:] as linhas removidas por um \texttt{delete}, ou
+	os valores antigos de um \texttt{update}.
+\end{description}
+
+Um \texttt{update} funciona como uma exclusão seguida de uma inclusão: o
+valor antigo vai para \texttt{deleted} e o novo, para \texttt{inserted}.
+Comparar as duas mostra o que mudou. A função \texttt{update(coluna)}
+indica se a coluna estava entre as alteradas pelo comando.
+
+\section{Criar, alterar e excluir}
+
+\begin{lstlisting}
+create trigger nome
+on tabela
+for {[insert] [,] [update] [,] [delete]}
+as
+comandos
+
+alter trigger nome on tabela for ... as ...  -- substitui a definição
+exec sp_rename 'nome', 'novo_nome'
+drop trigger nome1, nome2
+\end{lstlisting}
+
+Antes de escrever o gatilho, a aula recomenda projetá-lo: quais
+operações, em quais tabelas, o disparam; e quais ações ele executa.
+
+\section{Exemplos}
+
+O exemplo da aula usa produto, nota fiscal e item de nota, e mantém o
+valor total da nota com três gatilhos. Aqui o mesmo raciocínio aparece
+no banco de biblioteca: a tabela \texttt{livro} ganha uma coluna
+derivada \texttt{qtd\_exemplares}, mantida pelos gatilhos da tabela
+\texttt{exemplar}.
+
+\begin{lstlisting}
+alter table livro add qtd_exemplares int not null default 0
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Inclusão: soma os exemplares novos de cada livro.}]
+create trigger exemplar_inclusao
+on exemplar for insert
+as
+update livro
+set qtd_exemplares = qtd_exemplares + i.qtd
+from livro l
+     inner join (select codlivro, count(*) as qtd
+                 from inserted
+                 group by codlivro) i
+     on l.codlivro = i.codlivro
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Exclusão: desconta os exemplares removidos.}]
+create trigger exemplar_exclusao
+on exemplar for delete
+as
+update livro
+set qtd_exemplares = qtd_exemplares - d.qtd
+from livro l
+     inner join (select codlivro, count(*) as qtd
+                 from deleted
+                 group by codlivro) d
+     on l.codlivro = d.codlivro
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Alteração: só age se o exemplar mudou de livro.}]
+create trigger exemplar_alteracao
+on exemplar for update
+as
+if update(codlivro)
+begin
+   update livro set qtd_exemplares = qtd_exemplares - d.qtd
+   from livro l inner join (select codlivro, count(*) as qtd
+                            from deleted group by codlivro) d
+        on l.codlivro = d.codlivro
+
+   update livro set qtd_exemplares = qtd_exemplares + i.qtd
+   from livro l inner join (select codlivro, count(*) as qtd
+                            from inserted group by codlivro) i
+        on l.codlivro = i.codlivro
+end
+\end{lstlisting}
+
+O \texttt{update ... from} com junção é a forma do T-SQL de alterar uma
+tabela usando dados de outra. O agrupamento por \texttt{codlivro} faz o
+gatilho funcionar mesmo quando um único comando mexe em vários
+exemplares; o porquê está no complemento a seguir.
+
+Os gatilhos da aula seguem outro padrão: atualizam a nota com
+\texttt{where numeronota = (select numeronota from inserted)} e, se
+nenhuma linha foi afetada (\texttt{@@rowcount = 0}), executam
+\texttt{rollback}.
+
+\subsection{Gatilhos e chaves estrangeiras}
+
+Os testes da aula mostram uma interação importante. Inserir um item
+para uma nota que não existe falha pela chave estrangeira, antes de o
+gatilho rodar. E o gatilho que apaga os itens de uma nota excluída nunca
+chega a rodar: a chave estrangeira do item impede o \texttt{delete} da
+nota antes. A solução dos slides é remover essa chave estrangeira e
+passar a verificar, no gatilho de inclusão, se a nota existe
+(\texttt{if not exists (...)}, com \texttt{print} e
+\texttt{rollback}).
+
+\section*{Complementos da documentação}
+
+\subsection*{O gatilho dispara uma vez por comando}
+
+Os slides dizem que o gatilho se repete para cada linha afetada. No SQL
+Server não é assim: o gatilho DML dispara \emph{uma vez por comando},
+mesmo que o comando afete várias linhas ou nenhuma, e as tabelas
+\texttt{inserted} e \texttt{deleted} trazem todas as linhas
+afetadas\sidecite{MSCreateTrigger}. A documentação recomenda escrever
+gatilhos preparados para várias linhas\sidecite{MSTriggerInsertedDeleted}.
+
+A consequência prática: \texttt{where numeronota = (select numeronota
+from inserted)} só funciona quando o comando insere um item por vez. Um
+\texttt{insert ... select} com itens de duas notas faz a subconsulta
+devolver dois valores, e o comando falha. A forma segura é juntar com
+\texttt{inserted} e agrupar, como nos exemplos acima.
+
+\textcite[seção 26.1]{Elmasri2011} explica a origem da confusão: no
+padrão SQL e no Oracle, o gatilho pode ser declarado \texttt{for each
+row} (dispara por linha) ou não (dispara por comando). O SQL Server só
+tem a segunda forma.
+
+\subsection*{Quando as linhas já estão na tabela}
+
+Os slides dizem que \texttt{inserted} contém as linhas que serão
+inseridas, mas ainda não foram. No SQL Server, \texttt{for} e
+\texttt{after} são sinônimos: o gatilho roda \emph{depois} que o comando
+foi executado com sucesso, inclusive as verificações de restrições e as
+ações em cascata\sidecite{MSCreateTrigger}. Quando o gatilho roda, as
+linhas já estão na tabela, dentro da transação ainda aberta; é isso que
+o \texttt{rollback} desfaz. É também por isso que a chave estrangeira
+barra o comando antes do gatilho no teste da aula.
+
+\subsection*{Alternativas para manter a chave estrangeira}
+
+Remover a chave estrangeira para o gatilho de exclusão funcionar troca
+uma restrição declarativa por código. Duas alternativas mantêm a
+integridade referencial:
+
+\begin{itemize}
+	\item declarar a chave estrangeira com \texttt{on delete cascade}
+	(\refch{cet615-ddl}): o próprio SGBD apaga os itens, sem gatilho;
+	\item usar um gatilho \texttt{instead of delete} na nota, que roda
+	\emph{no lugar} do comando, antes das restrições: ele apaga os itens
+	e depois a nota. A documentação não permite esse tipo de gatilho numa
+	tabela que tenha \texttt{on delete cascade}\sidecite{MSCreateTrigger}.
+\end{itemize}
+
+Os gatilhos \texttt{instead of} também são a forma de tornar atualizável
+uma visão que não seria (\refch{cet615-visoes}).
+
+\subsection*{Outros pontos}
+
+\begin{itemize}
+	\item Gatilhos que devolvem resultados com \texttt{select} estão
+	marcados para remoção em versão futura.
+	\item \texttt{truncate table} não dispara gatilho de exclusão.
+	\item Pode haver vários gatilhos para o mesmo comando, sem ordem
+	garantida (exceto o primeiro e o último, definidos com
+	\texttt{sp\_settriggerorder}).
+	\item Gatilhos podem disparar outros gatilhos até 32 níveis. A
+	recursão direta (um gatilho que altera a própria tabela) depende da
+	opção \texttt{recursive\_triggers} do banco.
+	\item Um gatilho mantém os bloqueios da transação enquanto roda, então
+	deve ser curto. A documentação sugere sair logo quando o comando não
+	afetou linha nenhuma: \texttt{if (rowcount\_big() = 0) return}.
+\end{itemize}

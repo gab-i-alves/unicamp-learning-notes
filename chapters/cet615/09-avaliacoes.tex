@@ -1,0 +1,142 @@
+\setchapterpreamble[u]{\margintoc}
+\chapter{Avaliações}
+\labch{cet615-avaliacoes}
+
+A disciplina teve duas avaliações individuais, entregues pelo Moodle como
+arquivo TXT ou PDF; a nota final é a média das duas, e a média para
+aprovação é 7. A professora pediu respostas assertivas: só os comandos
+pedidos, sem dados de teste e sem alterar o esquema físico fornecido.
+
+\section{Primeira avaliação}
+
+Entregue até 14/11/2026, às 9h. As duas questões usam o esquema de um
+sistema de venda de obras literárias usadas, o mesmo do mapeamento do
+\refch{cet615-conceitos}:
+
+\begin{itemize}
+	\item \texttt{cliente(login, senha, nome, endereco,
+	qtd\_obras\_vendidas, qtd\_obras\_compradas)};
+	\item \texttt{obras\_literarias(codobra, nome, editora, preco, tipo,
+	login\_vendedor, data)}, com \texttt{tipo} 0 para livro e 1 para
+	periódico, e \texttt{login\_vendedor} referenciando \texttt{cliente};
+	\item \texttt{livro(codobra, ISBN)} e \texttt{periodico(codobra,
+	numero, volume)}, cada um com \texttt{codobra} referenciando a obra;
+	\item \texttt{compra(codcompra, data, login\_comprador, codobra)}, com
+	um índice único em \texttt{codobra}: cada obra é comprada no máximo
+	uma vez.
+\end{itemize}
+
+\subsection{Questão 1 (4,0): visão}
+
+Pedido: uma visão que, para cada periódico já comprado, mostre o login e
+o nome do vendedor, o código e o nome da obra, a data em que foi posta à
+venda e a data da compra; e um exemplo de consulta à visão.
+
+\begin{lstlisting}
+create view periodicos_comprados
+as
+select c.login login_vendedor, c.nome nome_vendedor,
+       o.codobra, o.nome nome_obra,
+       o.data data_venda, cp.data data_compra
+from cliente c inner join obras_literarias o
+         on c.login = o.login_vendedor
+         inner join periodico p
+         on o.codobra = p.codobra
+         inner join compra cp
+         on o.codobra = cp.codobra
+go
+
+select * from periodicos_comprados
+where login_vendedor = 'ana'
+order by data_compra
+\end{lstlisting}
+
+Decisões:
+
+\begin{itemize}
+	\item A junção com \texttt{periodico} restringe a obra aos periódicos;
+	\texttt{o.tipo = 1} daria o mesmo resultado com dados consistentes. A
+	junção com \texttt{compra} restringe às obras já compradas.
+	\item As duas colunas \texttt{nome} e as duas \texttt{data} recebem
+	apelidos, porque teriam o mesmo nome na visão.
+	\item A visão traz só o que foi pedido; o filtro e a ordenação ficam na
+	consulta de exemplo, como recomendado no \refch{cet615-visoes}.
+\end{itemize}
+
+\subsection{Questão 2 (6,0): procedimento armazenado}
+
+Pedido: um procedimento para a transação de cadastro de livros, que
+retorne 1 em caso de sucesso e 0 caso contrário, com um exemplo de
+execução que mostre o retorno. Os vendedores já estão cadastrados.
+
+\begin{lstlisting}
+create procedure ins_livro
+@codobra int,
+@nome char(40),
+@editora char(40),
+@preco numeric(6,2),
+@login_vendedor char(8),
+@data date,
+@isbn numeric(13,0)
+as
+begin transaction
+insert into obras_literarias
+values (@codobra, @nome, @editora, @preco, 0, @login_vendedor, @data)
+if @@rowcount > 0
+begin
+      insert into livro
+      values (@codobra, @isbn)
+      if @@rowcount > 0
+      begin
+            commit transaction
+            return 1
+      end
+      else
+      begin
+            rollback transaction
+            return 0
+      end
+end
+else
+begin
+      rollback transaction
+      return 0
+end
+go
+
+declare @ret int
+exec @ret = ins_livro 10, 'Dom Casmurro', 'Garnier', 25.00, 'ana',
+            '2026-11-07', 9788535910663
+print @ret
+\end{lstlisting}
+
+Decisões, seguindo o \refch{cet615-procedimentos}:
+
+\begin{itemize}
+	\item A transação tem as duas operações do cadastro: a obra genérica e
+	o livro específico, nessa ordem por causa da chave estrangeira.
+	\item O código da obra é passado uma vez só, e o \texttt{tipo} é fixo
+	(0), não parâmetro.
+	\item Os tipos dos parâmetros são os mesmos das colunas do esquema
+	físico.
+	\item A contagem \texttt{qtd\_obras\_vendidas} do vendedor ficou de
+	fora. Na apresentação da avaliação, a professora pediu a transação
+	mais compacta possível e anunciou que a segunda avaliação usaria o
+	mesmo esquema. Totais derivados como esse são o exemplo clássico de
+	gatilho (\refch{cet615-gatilhos}).
+\end{itemize}
+
+\subsection{Verificação}
+
+As duas respostas foram testadas no SQL Server 2022 com dados de exemplo
+antes da entrega. A visão devolveu só os periódicos comprados, deixando
+de fora um periódico não comprado e um livro comprado. O procedimento
+retornou 1 num cadastro válido. Também retornou 0 com código de obra
+repetido e com vendedor inexistente, sem deixar nada gravado e sem
+transação aberta. Nos casos de falha, o SQL Server mostra a mensagem do
+erro (violação de chave primária ou estrangeira) antes do retorno 0. É o
+comportamento esperado do padrão com \texttt{@@rowcount}.
+
+\section{Segunda avaliação}
+
+\textit{Será incluída depois da entrega, prevista para 21/11/2026, às 9h.}
