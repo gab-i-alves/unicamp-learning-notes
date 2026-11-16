@@ -167,4 +167,90 @@ comportamento esperado do padrão com \texttt{@@rowcount}.
 
 \section{Segunda avaliação}
 
-\textit{Será incluída depois da entrega, prevista para 21/11/2026, às 9h.}
+Entrega prevista para 21/11/2026, às 9h. O esquema é o mesmo da primeira
+avaliação, como a professora tinha anunciado, e as duas questões tratam
+do total derivado que ficou de fora do procedimento da questão 2 da
+primeira avaliação.
+
+\subsection{Questão 1 (8,0): gatilho}
+
+Pedido: um gatilho que, a cada compra incluída, atualize a quantidade de
+obras vendidas do cliente vendedor (\texttt{qtd\_obras\_vendidas}) e a
+quantidade de obras compradas do cliente comprador
+(\texttt{qtd\_obras\_compradas}).
+
+\begin{lstlisting}
+create trigger inclusao_compra
+on compra for insert
+as
+   update cliente
+   set qtd_obras_vendidas = qtd_obras_vendidas + 1
+   where login = (select o.login_vendedor
+                  from inserted i inner join obras_literarias o
+                       on i.codobra = o.codobra)
+   if @@rowcount = 0
+      rollback transaction
+   else
+   begin
+      update cliente
+      set qtd_obras_compradas = qtd_obras_compradas + 1
+      where login = (select login_comprador from inserted)
+      if @@rowcount = 0
+         rollback transaction
+   end
+go
+\end{lstlisting}
+
+Decisões, seguindo o \refch{cet615-gatilhos}:
+
+\begin{itemize}
+	\item O vendedor não está em \texttt{compra}: a compra só traz a obra.
+	Por isso a primeira atualização junta \texttt{inserted} com
+	\texttt{obras\_literarias} para chegar ao \texttt{login\_vendedor}.
+	\item O comprador vem direto de \texttt{inserted}, na coluna
+	\texttt{login\_comprador}.
+	\item Cada atualização segue o padrão da aula: se nenhuma linha foi
+	afetada (\texttt{@@rowcount = 0}), o gatilho executa
+	\texttt{rollback}, que desfaz também a inclusão da compra. Aqui não
+	encontrar o cliente é de fato erro, porque toda compra tem vendedor e
+	comprador.
+	\item A segunda atualização só roda se a primeira deu certo, para não
+	gastar tempo com uma operação que seria desfeita.
+\end{itemize}
+
+\subsection{Questão 2 (2,0): execução do gatilho}
+
+Pedido: um exemplo de execução automática do gatilho. O gatilho não é
+chamado diretamente; ele dispara com a inclusão de uma compra.
+
+\begin{lstlisting}
+insert into compra values (1, '2026-11-14', 'bia', 10)
+go
+
+select login, nome, qtd_obras_vendidas, qtd_obras_compradas
+from cliente
+where login in ('ana', 'bia')
+go
+\end{lstlisting}
+
+A obra 10 é o livro cadastrado pela vendedora \texttt{ana} no exemplo do
+procedimento da primeira avaliação. A consulta depois do \texttt{insert}
+mostra as duas quantidades atualizadas.
+
+\subsection{Verificação}
+
+O gatilho foi testado no SQL Server 2022 com dados de exemplo. Na compra
+válida, \texttt{ana} passou a ter uma obra vendida e \texttt{bia}, uma
+obra comprada. Uma segunda compra da mesma obra falhou pelo índice único
+em \texttt{codobra} antes de o gatilho rodar, e as quantidades não
+mudaram.
+
+Um \texttt{insert} com duas compras no mesmo comando também falhou: as
+subconsultas devolveram dois valores, e o SQL Server recusou a
+comparação com \texttt{=} (erro 512). Nada foi gravado. É a limitação
+descrita nos complementos do \refch{cet615-gatilhos}: o gatilho dispara
+uma vez por comando, e o padrão com \texttt{where login = (select ...)}
+supõe uma compra por vez. A resposta segue o padrão da aula, que a
+avaliação cobra. Uma versão para várias linhas trocaria cada
+subconsulta por um \texttt{update ... from} com junção e agrupamento,
+como nos exemplos daquele capítulo.

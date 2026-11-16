@@ -1,0 +1,293 @@
+\setchapterpreamble[u]{\margintoc}
+\chapter{Roteiro de Estudo}
+\labch{cet615-roteiro}
+
+Perguntas para revisar a disciplina, capítulo por capítulo. As respostas
+não estão aqui: o objetivo é voltar ao texto e às referências para
+encontrá-las. As perguntas têm três níveis.
+
+\begin{description}
+	\item[Rever.] A resposta está no capítulo indicado. Serve para conferir
+	se o conceito ficou.
+	\item[Aplicar.] Pede para escrever, corrigir ou comparar modelos e
+	comandos num cenário novo, com o que o capítulo ensina. O SQL Server é
+	o melhor juiz: escreva, execute e veja o resultado.
+	\item[Aprofundar.] Vai além da aula. A resposta exige as referências
+	citadas no capítulo, o \textcite{Elmasri2011} ou a documentação do SQL
+	Server, e muitas vezes admite mais de uma resposta defensável, desde
+	que justificada.
+\end{description}
+
+A sugestão é responder por escrito antes de conferir. Uma resposta que
+não cabe em poucas linhas costuma indicar que o conceito ainda não
+assentou.
+
+\section{Conceitos fundamentais}
+
+Referente ao \refch{cet615-conceitos}.
+
+\subsection*{Rever}
+\begin{enumerate}
+	\item O que distingue um banco de dados de uma coleção qualquer de
+	dados? O que é o minimundo?
+	\item Quais problemas do sistema de arquivos o SGBD resolve?
+	\item Quais são as fases do projeto de um banco de dados, e o que cada
+	uma entrega para a seguinte?
+	\item Em que dois casos a aula recomenda usar generalização?
+\end{enumerate}
+
+\subsection*{Aplicar}
+\begin{enumerate}
+	\item Modele em ME-R uma clínica com médicos, pacientes e consultas.
+	Indique grau, cardinalidade e chaves. Onde caberia uma generalização?
+	\item Mapeie para o modelo relacional a generalização de pessoa em
+	aluno e professor de duas formas diferentes. Compare as tabelas que
+	resultam de cada uma.
+	\item Dê um exemplo de linha que viola uma chave primária e outro de
+	linha que viola uma chave estrangeira no banco da biblioteca.
+\end{enumerate}
+
+\subsection*{Aprofundar}
+\begin{enumerate}
+	\item Pela arquitetura de três esquemas, qual das duas independências
+	de dados é mais difícil de alcançar na prática, e por quê?
+	\item Entre as opções de mapeamento de especialização do Elmasri,
+	quando uma tabela única com atributo de tipo é melhor que uma tabela
+	por específico? Considere nulos, junções e restrições.
+\end{enumerate}
+
+\section{O SQL Server e o banco de dados}
+
+Referente ao \refch{cet615-sqlserver}.
+
+\subsection*{Rever}
+\begin{enumerate}
+	\item Para que servem os bancos \texttt{master}, \texttt{model},
+	\texttt{msdb} e \texttt{tempdb}?
+	\item Quais arquivos compõem um banco no SQL Server, e o que cada um
+	guarda?
+	\item O que o \texttt{go} faz, e por que ele não é um comando T-SQL?
+\end{enumerate}
+
+\subsection*{Aplicar}
+\begin{enumerate}
+	\item Escreva um \texttt{create database} com um arquivo de dados e um
+	de log, com tamanho inicial e crescimento definidos. Depois aumente o
+	arquivo de dados com \texttt{alter database}.
+	\item Crie uma tabela no \texttt{model} e depois um banco novo. Onde a
+	tabela aparece? Explique o resultado.
+	\item Use as visões de catálogo para listar as tabelas e as colunas de
+	um banco seu.
+\end{enumerate}
+
+\subsection*{Aprofundar}
+\begin{enumerate}
+	\item Que consequências o fato de o \texttt{tempdb} ser recriado a cada
+	reinício tem para quem usa tabelas temporárias e para o desempenho da
+	instância?
+	\item Quando vale distribuir um banco em mais de um grupo de arquivos?
+	Pense em discos diferentes, backup e partes do banco só de leitura.
+\end{enumerate}
+
+\section{Definição de dados (DDL)}
+
+Referente ao \refch{cet615-ddl}.
+
+\subsection*{Rever}
+\begin{enumerate}
+	\item Por que basta uma coluna \texttt{varchar} para o registro passar
+	a ter tamanho variável? Quando a aula recomenda \texttt{varchar}?
+	\item Quais restrições de integridade podem ser declaradas no
+	\texttt{create table}?
+	\item Por que só pode haver um índice clusterizado por tabela?
+\end{enumerate}
+
+\subsection*{Aplicar}
+\begin{enumerate}
+	\item Escreva o script de criação das tabelas livro, leitor e
+	empréstimo, com chaves, restrições nomeadas e um \texttt{check}.
+	\item Proponha três consultas frequentes sobre essas tabelas e escolha
+	a partir delas o índice clusterizado e os não clusterizados.
+	Justifique cada escolha.
+	\item Remova uma chave estrangeira nomeada, grave uma linha que a
+	viola e tente recriar a chave. O que acontece?
+\end{enumerate}
+
+\subsection*{Aprofundar}
+\begin{enumerate}
+	\item Para a chave estrangeira do empréstimo para o leitor, compare
+	\texttt{cascade}, \texttt{set null} e a ausência de ação referencial.
+	Qual você escolheria, e por quê?
+	\item Um índice composto em (\texttt{sobrenome}, \texttt{nome}) ajuda
+	numa consulta que filtra só por \texttt{nome}? Explique com a
+	estrutura da árvore B.
+\end{enumerate}
+
+\section{Manipulação de dados (DML)}
+
+Referente ao \refch{cet615-dml}.
+
+\subsection*{Rever}
+\begin{enumerate}
+	\item Qual a diferença entre um \texttt{delete} sem \texttt{where} e um
+	\texttt{truncate table}?
+	\item Como a lógica de três valores afeta um \texttt{where} sobre uma
+	coluna com nulos?
+	\item Quais são os estados de uma transação e as propriedades ACID?
+	\item Qual erro de junção a aula diz que conta na nota, mesmo com o
+	resultado certo?
+\end{enumerate}
+
+\subsection*{Aplicar}
+\begin{enumerate}
+	\item Liste os leitores que nunca pegaram um livro emprestado de duas
+	formas: com junção externa e com subconsulta.
+	\item Para cada autor com mais de dois livros, mostre a quantidade de
+	livros. Na sua consulta, o que vai no \texttt{where} e o que vai no
+	\texttt{having}?
+	\item Em duas janelas do SSMS, abra uma transação que altera um
+	empréstimo e, sem confirmar, consulte a mesma linha na outra janela.
+	O que acontece, e por quê?
+\end{enumerate}
+
+\subsection*{Aprofundar}
+\begin{enumerate}
+	\item Por que o log de transações precisa ser gravado antes das
+	páginas de dados? O que isso permite na recuperação depois de uma
+	queda?
+	\item O comportamento observado no exercício das duas janelas depende
+	do nível de isolamento. Quais níveis o SQL Server oferece, e o que
+	cada um troca entre consistência e concorrência?
+\end{enumerate}
+
+\section{Visões}
+
+Referente ao \refch{cet615-visoes}.
+
+\subsection*{Rever}
+\begin{enumerate}
+	\item O que é uma visão? Quais as vantagens e as desvantagens?
+	\item Em que condições uma visão é atualizável?
+	\item Por que a professora conclui que visão serve para consulta?
+\end{enumerate}
+
+\subsection*{Aplicar}
+\begin{enumerate}
+	\item Crie uma visão dos empréstimos em atraso com o nome do leitor e
+	o título do livro, e uma consulta a ela que filtre por leitor.
+	\item Uma colega usa essa visão com \texttt{select distinct} para
+	listar os leitores com empréstimo. Qual o problema, e qual a consulta
+	certa?
+	\item Tente inserir uma linha por uma visão que omite uma coluna
+	\texttt{not null}. Explique o erro.
+\end{enumerate}
+
+\subsection*{Aprofundar}
+\begin{enumerate}
+	\item Que problema o \texttt{with check option} resolve? Mostre um
+	caso em que, sem ele, a linha alterada some da própria visão.
+	\item O que muda quando uma visão passa a ser indexada? Quando o
+	custo de manter o índice compensa?
+\end{enumerate}
+
+\section{Procedimentos armazenados e transações}
+
+Referente ao \refch{cet615-procedimentos}.
+
+\subsection*{Rever}
+\begin{enumerate}
+	\item Quais as vantagens de um procedimento armazenado?
+	\item Qual a diferença entre parâmetro de saída e valor de retorno?
+	\item Por que não dá para escrever um único \texttt{return
+	@@rowcount} no fim do procedimento?
+\end{enumerate}
+
+\subsection*{Aplicar}
+\begin{enumerate}
+	\item Escreva um procedimento que registre um empréstimo e atualize a
+	situação do exemplar numa única transação, retornando 1 ou 0. Teste
+	um caso de sucesso e dois de falha.
+	\item Acrescente a esse procedimento um parâmetro com valor padrão e
+	um de saída. Mostre uma chamada que use os dois.
+	\item Um procedimento chama outro, e o interno executa
+	\texttt{rollback}. O que acontece com o \texttt{@@trancount} e com o
+	procedimento externo?
+\end{enumerate}
+
+\subsection*{Aprofundar}
+\begin{enumerate}
+	\item Compare o padrão com \texttt{@@rowcount} usado em aula com
+	\texttt{try...catch} e \texttt{throw}. Que erros cada um deixa
+	escapar?
+	\item Por que o padrão SQL e o T-SQL tratam procedimentos de forma tão
+	diferente? Que consequência isso tem para levar um sistema de um SGBD
+	para outro?
+\end{enumerate}
+
+\section{Gatilhos}
+
+Referente ao \refch{cet615-gatilhos}.
+
+\subsection*{Rever}
+\begin{enumerate}
+	\item O que é um banco de dados ativo? O que significa cada parte do
+	modelo evento--condição--ação?
+	\item O que as tabelas \texttt{inserted} e \texttt{deleted} contêm em
+	um \texttt{insert}, um \texttt{update} e um \texttt{delete}?
+	\item Por que um \texttt{rollback} dentro do gatilho desfaz também o
+	comando que o disparou?
+	\item Qual teste a professora propôs para decidir entre gatilho e
+	transação explícita?
+\end{enumerate}
+
+\subsection*{Aplicar}
+\begin{enumerate}
+	\item Escreva os gatilhos que mantêm a quantidade de empréstimos
+	ativos de cada leitor, preparados para comandos que afetam várias
+	linhas.
+	\item O gatilho da segunda avaliação falha num \texttt{insert} com duas
+	compras. Reescreva-o para várias linhas e teste.
+	\item Com a chave estrangeira do item para a nota, o gatilho que apaga
+	os itens de uma nota excluída nunca roda. Demonstre e explique.
+\end{enumerate}
+
+\subsection*{Aprofundar}
+\begin{enumerate}
+	\item Em que situação um gatilho \texttt{instead of} é a única saída,
+	e não apenas um jeito de simular \texttt{before}? Pense em visões.
+	\item Quais os riscos de gatilhos encadeados e recursivos, e como o
+	SQL Server os limita?
+\end{enumerate}
+
+\section{Controle de dados (DCL)}
+
+Referente ao \refch{cet615-dcl}.
+
+\subsection*{Rever}
+\begin{enumerate}
+	\item Quais são os três níveis de acesso, e o que acontece quando
+	falta um deles?
+	\item Qual a diferença entre \texttt{grant}, \texttt{revoke} e
+	\texttt{deny}? Qual tem precedência?
+	\item Quais são os tipos de backup, e o que cada um copia?
+\end{enumerate}
+
+\subsection*{Aplicar}
+\begin{enumerate}
+	\item Crie um login, um usuário e um papel de atendentes que leia
+	livros e registre empréstimos. Negue a exclusão de empréstimos a um
+	atendente específico e teste conectado como ele.
+	\item Monte uma estratégia de backup para um banco que não pode perder
+	mais de uma hora de dados. Quais tipos, com que frequência, e qual a
+	sequência de restauração depois de uma falha?
+	\item Use um esquema para separar os objetos do empréstimo e conceda
+	permissão no esquema inteiro, em vez de objeto por objeto.
+\end{enumerate}
+
+\subsection*{Aprofundar}
+\begin{enumerate}
+	\item Em que casos o \texttt{deny} não vence? Por que essas exceções
+	existem?
+	\item Como o modelo de recuperação (\emph{simple}, \emph{full} ou
+	\emph{bulk-logged}) limita a estratégia de backup que você montou?
+\end{enumerate}
