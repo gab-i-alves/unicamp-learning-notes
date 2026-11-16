@@ -1,59 +1,81 @@
 % Cover: full-page TikZ drawing, different from the inner title page.
-% Uses the bdroxo/bdazul palette defined in main.tex. Needs two compilations
+% Flat colors in the style of classic textbook covers: a solid background,
+% a colored panel and a line drawing taken from the content (the library
+% ME-R of chapter 1), partly outside the panel. Needs two compilations
 % (remember picture), which Overleaf and latexmk already do.
 
+\definecolor{capafundo}{HTML}{26245A}
+
 \begin{titlepage}
-\begin{tikzpicture}[remember picture, overlay]
+\begin{tikzpicture}[remember picture, overlay,
+	ent/.style={draw=white, line width=0.8pt, minimum width=22mm,
+		minimum height=9mm, font=\scshape, text=white},
+	rel/.style={diamond, aspect=2, draw=white, line width=0.8pt,
+		inner sep=1pt, font=\small\scshape, text=white},
+	lig/.style={draw=white, line width=0.8pt},
+	attr/.style={circle, draw=white, line width=0.8pt, inner sep=0pt,
+		minimum size=2mm},
+	attrchave/.style={attr, fill=white},
+	attrnome/.style={font=\footnotesize\itshape, text=white},
+	cardin/.style={font=\footnotesize, text=bdroxoclaro}]
 	\begin{scope}[shift={(current page.south west)}]
-		% Background gradient
-		\shade[top color=bdroxo, bottom color=bdazul, shading angle=-30]
-			(0,0) rectangle (current page.north east);
-
-		% Dot grid, upper right
-		\foreach \x in {0,...,13} {
-			\foreach \y in {0,...,9} {
-				\fill[white, opacity=0.18] ({11.2+0.6*\x},{22.2+0.6*\y}) circle (0.7pt);
-			}
-		}
-
-		% Large database cylinder, the same drawing as the logo
-		\begin{scope}[draw=white, line width=9pt, line cap=round, opacity=0.12]
-			\draw (15.5,19.5) ellipse [x radius=6, y radius=1.9];
-			\draw (9.5,19.5) -- (9.5,9.5)
-				arc[start angle=180, end angle=360, x radius=6, y radius=1.9]
-				-- (21.5,19.5);
-			\draw (9.5,16.2) arc[start angle=180, end angle=360, x radius=6, y radius=1.9];
-			\draw (9.5,12.9) arc[start angle=180, end angle=360, x radius=6, y radius=1.9];
-		\end{scope}
-
-		% Institution
-		\node[anchor=north west, text=white, font=\small] at (2.2,27.2)
-			{\textls[180]{\MakeUppercase{Faculdade de Tecnologia \textperiodcentered{} Unicamp}}};
+		% Solid background
+		\fill[capafundo] (0,0) rectangle (21,29.7);
 
 		% Title block
-		\node[anchor=north west, text=white, text width=13cm, align=left] (titulo) at (2.1,23.2)
-			{\fontsize{46}{50}\selectfont\bfseries Anotações\\de Estudo};
-		\draw[white, line width=1.2pt] ([xshift=1mm, yshift=-6mm]titulo.south west) -- ++(3.5,0);
-		\node[anchor=north west, text=white, text width=11cm, align=left]
-			at ([xshift=1mm, yshift=-1cm]titulo.south west)
-			{\Large\itshape Resumos das disciplinas com complementos da bibliografia\par
-			\vspace{5mm}
-			\normalsize\upshape Especialização em Engenharia e Administração\\
-			de Sistemas de Banco de Dados};
+		\draw[bdroxoclaro, line width=0.8pt] (1.8,27.4) -- (19.2,27.4);
+		\node[anchor=north west, inner sep=0pt, text=bdroxoclaro] at (1.8,26.8)
+			{\fontsize{38}{42}\selectfont Anotações de Estudo};
+		\node[anchor=north west, inner sep=0pt, text=white] at (1.8,24.9)
+			{\large\itshape Resumos das disciplinas com complementos da bibliografia};
 
-		% Author
-		\node[anchor=south west, text=white, align=left] at (2.2,5.3)
+		% Panel
+		\fill[bdazul] (1.8,11.6) rectangle (13.6,21.6);
+
+		% Library ME-R, the last entity outside the panel
+		\node[ent] (autor) at (3.4,17.6) {Autor};
+		\node[rel] (esc) at (6.8,17.6) {Escrever};
+		\node[ent] (livro) at (10.2,17.6) {Livro};
+		\node[rel] (res) at (13.6,17.6) {Reservar};
+		\node[ent] (leitor) at (17.0,17.6) {Leitor};
+		\draw[lig] (autor) -- node[cardin, above, pos=0.3] {N} (esc);
+		\draw[lig] (esc) -- node[cardin, above, pos=0.7] {M} (livro);
+		\draw[lig] (livro) -- node[cardin, above, pos=0.3] {N} (res);
+		\draw[lig] (res) -- node[cardin, above, pos=0.7] {M} (leitor);
+		\draw[lig] (autor.south) ++(-5mm,0) -- ++(0,-7mm) node[attrchave] (a1) {};
+		\node[attrnome, below=0.5mm of a1] {codautor};
+		\draw[lig] (autor.south) ++(5mm,0) -- ++(0,-15mm) node[attr] (a2) {};
+		\node[attrnome, below=0.5mm of a2] {nome};
+		\draw[lig] (livro.south) ++(-7mm,0) -- ++(0,-7mm) node[attrchave] (l1) {};
+		\node[attrnome, below=0.5mm of l1] {codlivro};
+		\draw[lig] (livro.south) -- ++(0,-15mm) node[attr] (l2) {};
+		\node[attrnome, below=0.5mm of l2] {título};
+		\draw[lig] (livro.south) ++(7mm,0) -- ++(0,-7mm) node[attr] (l3) {};
+		\node[attrnome, below=0.5mm of l3] {ISBN};
+		\draw[lig] (res.south) -- ++(0,-7mm) node[attr] (r1) {};
+		\node[attrnome, below=0.5mm of r1] {data};
+		\draw[lig] (leitor.south) ++(-5mm,0) -- ++(0,-7mm) node[attrchave] (le1) {};
+		\node[attrnome, below=0.5mm of le1] {codleitor};
+		\draw[lig] (leitor.south) ++(5mm,0) -- ++(0,-15mm) node[attr] (le2) {};
+		\node[attrnome, below=0.5mm of le2] {nome};
+
+		% Course and author
+		\node[anchor=north west, inner sep=0pt, text=white, align=left] at (1.8,10.2)
+			{\scshape Especialização em Engenharia e Administração\\
+			\scshape de Sistemas de Banco de Dados};
+		\node[anchor=south west, inner sep=0pt, text=bdroxoclaro] at (1.8,4.6)
 			{\Large Gabriele Alves};
 
 		% Bottom band with the logos (both images have a white background)
-		\fill[white] (0,0) rectangle (21,3.8);
-		\fill[bdazul] (0,3.8) rectangle (21,3.9);
-		\node[anchor=west] (unicamp) at (2.2,1.9)
+		\fill[white] (0,0) rectangle (21,3.6);
+		\node[anchor=west] (unicamp) at (1.6,1.8)
 			{\includegraphics[height=2.2cm]{logo-unicamp.jpg}};
 		\draw[bdcinza!40, line width=0.6pt]
 			($(unicamp.east)+(6mm,-9mm)$) -- ++(0,1.8);
 		\node[anchor=west] at ([xshift=12mm]unicamp.east)
 			{\includegraphics[height=1.2cm]{logo-extecamp.png}};
+		\node[anchor=east, text=bdcinza, font=\small] at (19.2,1.8)
+			{Faculdade de Tecnologia};
 	\end{scope}
 \end{tikzpicture}
 \end{titlepage}
