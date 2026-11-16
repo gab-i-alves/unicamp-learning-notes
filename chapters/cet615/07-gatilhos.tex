@@ -3,9 +3,9 @@
 \labch{cet615-gatilhos}
 
 Este capítulo cobre a apresentação sobre gatilhos da terceira
-aula~\cite{BaiocoCET615}. Ele foi escrito a partir dos slides, do
-script da aula, do livro e da documentação; a transcrição dessa aula
-ainda não foi incorporada.
+aula~\cite{BaiocoCET615}. Com eles, a disciplina fecha a sequência de
+objetos do banco vista desde a primeira aula: tabelas, índices,
+restrições, visões, procedimentos e gatilhos.
 
 \section{O que é um gatilho}
 
@@ -16,6 +16,11 @@ quando os dados dela mudam por \texttt{insert}, \texttt{update} ou
 parâmetros, que ninguém chama: ele dispara sozinho a cada comando a que
 está associado. Gatilhos servem para verificar ou modificar dados, e não
 para devolver dados ao usuário com \texttt{select}.
+
+O paralelo com o procedimento armazenado ajuda: os dois são conjuntos
+de comandos SQL, mas o procedimento não pertence a uma tabela e é
+chamado com \texttt{exec}; o gatilho fica preso a uma tabela e a um
+comando, não recebe parâmetros e não pode ser chamado.
 
 Usos convencionais citados na aula:
 
@@ -40,6 +45,14 @@ if condição  -- teste opcional
 then ação    -- o que fazer
 \end{lstlisting}
 
+Na história contada em aula\sidecite{BaiocoCET615Aulas}, os gatilhos
+existiam nos gerenciadores antes do padrão SQL e nasceram para checar
+restrições de integridade, numa época em que declarar \texttt{primary
+key} só documentava a coluna. Quando os fabricantes passaram a checar as
+restrições sozinhos, o gatilho ganhou outro uso: tornar o banco ativo. O
+usuário que escolhe uma opção do menu não sabe que outros comandos rodam
+por trás; o projetista e o programador sabem.
+
 \textcite[seção 26.1]{Elmasri2011} descreve o mesmo modelo: o evento
 costuma ser uma atualização no banco, mas pode ser um evento de tempo
 (``todo dia às 5h30'') ou externo; a condição é opcional; e a ação pode
@@ -62,6 +75,23 @@ commit ou rollback
 Por isso um \texttt{rollback} dentro do gatilho desfaz também o comando
 que o disparou, e um \texttt{rollback} em quem executou o comando desfaz
 também o que o gatilho fez.
+
+Três consequências que a professora destacou:
+
+\begin{itemize}
+	\item O gatilho não tem \texttt{begin transaction}, porque continua a
+	transação do comando, nem \texttt{commit}, porque pode haver uma
+	transação externa com outros comandos ainda por executar.
+	\item Ela sempre põe um ponto de \texttt{rollback} no gatilho. Com
+	mais de uma operação, testa a primeira antes de fazer a segunda, para
+	não gastar tempo com operações inúteis. Esse \texttt{rollback} desfaz
+	também a transação externa inteira.
+	\item Gatilho não alivia bloqueio. Trocar uma transação explícita por
+	um gatilho não deixa nada mais leve: a transação continua do mesmo
+	tamanho. O ganho é de consistência, porque as ações rodam sempre que
+	alguém executa o comando, sem depender de lembrar de abrir uma
+	transação.
+\end{itemize}
 
 \begin{figure}[h]
 \centering
@@ -99,8 +129,20 @@ mesma estrutura da tabela do gatilho, que podem ser consultadas com
 
 Um \texttt{update} funciona como uma exclusão seguida de uma inclusão: o
 valor antigo vai para \texttt{deleted} e o novo, para \texttt{inserted}.
-Comparar as duas mostra o que mudou. A função \texttt{update(coluna)}
-indica se a coluna estava entre as alteradas pelo comando.
+Não existe uma tabela \texttt{updated}. Comparar as duas mostra o que
+mudou; a diferença \texttt{i.quantidade - d.quantidade} serve para os
+dois sentidos, porque fica negativa quando a quantidade diminui. No
+Oracle, os equivalentes são \texttt{new} e \texttt{old}.
+
+A função \texttt{update(coluna)} indica se a coluna aparece no
+\texttt{set} do comando. Ela não compara valores: devolve verdadeiro
+mesmo que o valor não mude. Serve para um gatilho de alteração mais
+pontual, que só age quando a coluna que interessa foi tocada, já que
+disparar à toa custa tempo e bloqueio em outra tabela.
+
+Se o mesmo valor de \texttt{inserted} é usado várias vezes nas ações,
+a professora sugere carregá-lo uma vez numa variável em vez de repetir o
+\texttt{select}.
 
 \section{Criar, alterar e excluir}
 
@@ -116,8 +158,64 @@ exec sp_rename 'nome', 'novo_nome'
 drop trigger nome1, nome2
 \end{lstlisting}
 
-Antes de escrever o gatilho, a aula recomenda projetá-lo: quais
-operações, em quais tabelas, o disparam; e quais ações ele executa.
+O gatilho aparece no SSMS dentro da tabela, na pasta \emph{Gatilhos}, e
+\texttt{sp\_helptext} mostra o código, como em visões e procedimentos.
+\texttt{drop table} apaga os gatilhos da tabela junto; visões e
+procedimentos precisam de \texttt{drop} próprio.
+
+\subsection{\texttt{for}, \texttt{after}, \texttt{before} e
+\texttt{instead of}}
+
+O slide só mostra \texttt{for}, a forma antiga. \texttt{after} veio com
+a padronização, e no SQL Server os dois são iguais: primeiro executa o
+comando, depois o gatilho. O padrão e o Oracle têm também
+\texttt{before}, que inverte a ordem; o SQL Server não tem. Ele tem
+\texttt{instead of}, que \emph{substitui} o comando. Muita gente usa
+\texttt{instead of} para simular \texttt{before}, repetindo o comando
+original dentro do gatilho; a professora chama isso de adaptação, não do
+propósito do recurso.
+
+\subsection{Projetar antes de escrever}
+
+``Não adianta saber sintaxe e não saber projetar um gatilho''. Antes de
+escrever, defina quais operações, em quais tabelas, o disparam, e quais
+ações ele executa. Duas orientações da aula:
+
+\begin{itemize}
+	\item Um gatilho por operação. A sintaxe aceita \texttt{insert,
+	update, delete} no mesmo gatilho, mas isso só é comum em gatilhos de
+	verificação; para regras ativas, as ações mudam de uma operação para
+	outra (o \texttt{delete} subtrai o que o \texttt{insert} somou), e um
+	gatilho único com \texttt{if} para escolher o código não compensa.
+	\item Pode haver mais de um gatilho para a mesma operação. Ações
+	independentes podem ficar separadas; ações em que a ordem importa
+	ficam no mesmo gatilho, porque não se controla a ordem de execução
+	entre gatilhos.
+\end{itemize}
+
+\subsection{Gatilho ou transação explícita?}
+
+Tudo o que um gatilho faz pode ser feito por um procedimento com
+transação; o contrário nem sempre. A professora deu um teste que, nas
+palavras dela, não está nos slides: pense no procedimento que faria a
+transação. Se os parâmetros da primeira operação bastam para executar
+as outras, as outras podem virar gatilho da primeira, porque esses
+valores estarão em \texttt{inserted} ou \texttt{deleted}.
+
+\begin{itemize}
+	\item \textbf{Dá para ser gatilho:} inserir um item de nota recebe
+	número da nota, produto e quantidade. Com isso, o gatilho busca o
+	preço e atualiza o total da nota, sem parâmetro extra. O mesmo vale
+	para baixar o estoque ao vender um item.
+	\item \textbf{Não dá:} cadastrar um atendente, que é uma pessoa
+	genérica mais um registro específico. A segunda inclusão precisa de
+	salário e comissão, que a primeira não tem; só o código se
+	reaproveita.
+\end{itemize}
+
+O método sugerido para o projeto é listar tudo o que exige mais de uma
+operação e decidir, caso a caso, o que fica em transação explícita e o
+que vai para gatilho.
 
 \section{Exemplos}
 
@@ -183,7 +281,16 @@ exemplares; o porquê está no complemento a seguir.
 Os gatilhos da aula seguem outro padrão: atualizam a nota com
 \texttt{where numeronota = (select numeronota from inserted)} e, se
 nenhuma linha foi afetada (\texttt{@@rowcount = 0}), executam
-\texttt{rollback}.
+\texttt{rollback}. Na resolução dos exercícios, a professora observou
+que ``nenhuma linha afetada'' quer dizer ``não encontrou'', e não
+encontrar nem sempre é erro: quem decide abortar é a lógica do
+gatilho.
+
+O exercício de fixação traz mais um uso: quando uma fatura é paga
+(\texttt{if update(dtpagamento)}), o gatilho a apaga de \texttt{fatura}
+e a insere numa tabela \texttt{faturapaga} com \texttt{insert ...
+select * from inserted}. O mesmo recurso alimenta tabelas históricas ou
+desnormalizadas para BI, juntando \texttt{inserted} com tabelas reais.
 
 \subsection{Gatilhos e chaves estrangeiras}
 
@@ -196,12 +303,26 @@ passar a verificar, no gatilho de inclusão, se a nota existe
 (\texttt{if not exists (...)}, com \texttt{print} e
 \texttt{rollback}).
 
+A professora fez isso de propósito, para mostrar como a cascata era
+feita antes de existir \texttt{on delete cascade}, e avisou que não é
+para repetir. Tirou só a chave estrangeira do item para a nota, mantendo
+a do produto, e pegou o nome gerado da restrição na própria mensagem de
+erro (conferido com \texttt{sp\_helpconstraint}). Sem a chave, um item
+para a nota 0, que não existe, passou: uma inconsistência que ela chamou
+de inaceitável e que o novo gatilho de inclusão passou a barrar. No fim,
+o \texttt{delete} da nota apagou também os itens. Cascata e integridade
+funcionaram, só que por dois gatilhos, e o gerenciador hoje entrega as
+duas coisas prontas.
+
 \section*{Complementos da documentação}
 
 \subsection*{O gatilho dispara uma vez por comando}
 
-Os slides dizem que o gatilho se repete para cada linha afetada. No SQL
-Server não é assim: o gatilho DML dispara \emph{uma vez por comando},
+Os slides dizem que o gatilho se repete para cada linha afetada. Em
+aula, a professora ressalvou que isso depende do fabricante, lembrou que
+o SQL Server não tem o \texttt{for each row} do Oracle e deixou para a
+turma verificar o caso de várias linhas num comando. No SQL Server não é
+por linha: o gatilho DML dispara \emph{uma vez por comando},
 mesmo que o comando afete várias linhas ou nenhuma, e as tabelas
 \texttt{inserted} e \texttt{deleted} trazem todas as linhas
 afetadas\sidecite{MSCreateTrigger}. A documentação recomenda escrever
@@ -247,18 +368,51 @@ integridade referencial:
 Os gatilhos \texttt{instead of} também são a forma de tornar atualizável
 uma visão que não seria (\refch{cet615-visoes}).
 
+\subsection*{\texttt{commit} dentro do gatilho}
+
+Em aula, a professora lembrou, como recordação incerta, que o SQL Server
+ignora um \texttt{commit} no gatilho e só avisa. O teste mostra outra
+coisa. Num gatilho de inclusão com \texttt{commit}, o SQL Server 2022
+confirmou a inclusão e o que o gatilho fez, e em seguida deu o erro 3609
+(\emph{the transaction ended in the trigger; the batch has been
+aborted}): o resto do lote não rodou, e nenhuma transação externa
+poderia mais desfazer aquelas linhas. É mais um motivo para a regra da
+aula: gatilho não tem \texttt{commit}.
+
+\subsection*{Gatilhos encadeados e recursivos}
+
+Um aluno perguntou se um \texttt{update} dentro de um gatilho pode
+disparar outro gatilho. Pode, se as opções do servidor permitirem. A
+professora separou dois casos: o encadeamento, que vem ligado e em si não
+causa problema; e a recursão, quando a cadeia volta a disparar um
+gatilho anterior, que vem bloqueada porque, sem condição de parada, vira
+laço infinito.
+
+Os padrões batem com o SQL Server 2022: a opção de servidor
+\texttt{nested triggers} vem ligada, e a opção de banco
+\texttt{recursive\_triggers}, desligada\sidecite{MSCreateTrigger}. O
+detalhe é o alcance: \texttt{recursive\_triggers} desligada só impede a
+recursão \emph{direta}, o gatilho de T1 alterando T1. A indireta (T1
+dispara T2, que altera T1) só é barrada desligando \texttt{nested
+triggers}, o que barra todo encadeamento. Com ela ligada, um laço
+indireto para no limite de 32 níveis, com erro.
+
 \subsection*{Outros pontos}
 
 \begin{itemize}
 	\item Gatilhos que devolvem resultados com \texttt{select} estão
 	marcados para remoção em versão futura.
 	\item \texttt{truncate table} não dispara gatilho de exclusão.
-	\item Pode haver vários gatilhos para o mesmo comando, sem ordem
-	garantida (exceto o primeiro e o último, definidos com
-	\texttt{sp\_settriggerorder}).
-	\item Gatilhos podem disparar outros gatilhos até 32 níveis. A
-	recursão direta (um gatilho que altera a própria tabela) depende da
-	opção \texttt{recursive\_triggers} do banco.
+	\item Sobre a ordem entre gatilhos da mesma operação: a aula diz que
+	não há controle. Há um pouco: \texttt{sp\_settriggerorder} define o
+	primeiro e o último gatilho \texttt{after}; os do meio rodam em
+	ordem indefinida. A recomendação da aula, juntar no mesmo gatilho o
+	que depende de ordem, continua a mais segura.
+	\item Além dos gatilhos de dados, o SQL Server tem gatilhos de DDL,
+	disparados por \texttt{create}, \texttt{alter}, \texttt{drop},
+	\texttt{grant} e outros, no banco (\texttt{on database}) ou no
+	servidor (\texttt{on all server}), e gatilhos de logon. A aula não
+	tratou deles\sidecite{MSCreateTrigger}.
 	\item Um gatilho mantém os bloqueios da transação enquanto roda, então
 	deve ser curto. A documentação sugere sair logo quando o comando não
 	afetou linha nenhuma: \texttt{if (rowcount\_big() = 0) return}.

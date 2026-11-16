@@ -40,7 +40,7 @@ Os diagramas são desenhados em TikZ, com exemplos próprios.
 
 | Código | Disciplina | Situação |
 | --- | --- | --- |
-| CET 615 | Fundamentos de Sistemas de Banco de Dados | em andamento |
+| CET 615 | Fundamentos de Sistemas de Banco de Dados | aulas concluídas |
 
 As demais disciplinas estão listadas no prefácio e entram conforme o curso avança.
 
