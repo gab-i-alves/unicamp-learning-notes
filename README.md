@@ -1,8 +1,4 @@
-<p align="center">
-  <img src="images/logo.svg" alt="Logo das anotações" width="120">
-</p>
-
-<h1 align="center">Anotações de Estudo</h1>
+<h1 align="center">Caderno da Especialização</h1>
 
 <p align="center">
   Especialização em Engenharia e Administração de Sistemas de Banco de Dados<br>
@@ -15,7 +11,7 @@
   <a href="https://www.extecamp.unicamp.br/"><img src="images/logo-extecamp.png" alt="Extecamp" height="60"></a>
 </p>
 
-Resumos das disciplinas da especialização, escritos em LaTeX e sincronizados com o Overleaf. Cada capítulo junta o conteúdo da aula com complementos da bibliografia indicada e da documentação oficial, sempre com a fonte citada na margem.
+Resumos das disciplinas da especialização, escritos em LaTeX e sincronizados com o Overleaf. Cada capítulo junta o conteúdo da aula com complementos da bibliografia indicada e da documentação oficial, sempre com a fonte citada na margem. Cada disciplina termina com as avaliações resolvidas e um roteiro de estudo com perguntas em três níveis (rever, aplicar e aprofundar), sem as respostas.
 
 ## Prévia
 
@@ -40,7 +36,7 @@ Os diagramas são desenhados em TikZ, com exemplos próprios.
 
 | Código | Disciplina | Situação |
 | --- | --- | --- |
-| CET 615 | Fundamentos de Sistemas de Banco de Dados | aulas concluídas |
+| CET 615 | Fundamentos de Sistemas de Banco de Dados | concluída |
 
 As demais disciplinas estão listadas no prefácio e entram conforme o curso avança.
 
@@ -49,10 +45,11 @@ As demais disciplinas estão listadas no prefácio e entram conforme o curso ava
 ```
 main.tex                 documento principal (preâmbulo, capa, ordem das partes)
 main.bib                 referências
-chapters/cover.tex       capa em TikZ
+chapters/cover.tex       capa e verso da capa (sobre as anotações e colofão)
 chapters/preface.tex     prefácio com as disciplinas do curso
-chapters/cet615/         um arquivo por capítulo da CET 615
-images/                  logo e imagens usadas no texto
+chapters/cet615/         um arquivo por capítulo da CET 615, incluindo avaliações e roteiro
+images/                  logos e imagens usadas no texto
+images/capa-arte.py      gera images/capa-arte.pdf, a arte de fundo da capa
 ```
 
 Os arquivos de exemplo do template continuam em `chapters/`, mas não entram no PDF.
@@ -68,6 +65,12 @@ latexmk -pdf main.tex
 ```
 
 O `latexmk` roda o `pdflatex`, o `biber` e o `makeindex` quantas vezes for preciso.
+
+A arte da capa já está gerada em `images/capa-arte.pdf`. Para gerar de novo (a semente é fixa, então o resultado é o mesmo):
+
+```
+uv run --no-project --with matplotlib --with numpy python images/capa-arte.py images/capa-arte.pdf
+```
 
 ## Sobre o conteúdo
 
