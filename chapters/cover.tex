@@ -1,0 +1,59 @@
+% Cover: full-page TikZ drawing, different from the inner title page.
+% Uses the bdroxo/bdazul palette defined in main.tex. Needs two compilations
+% (remember picture), which Overleaf and latexmk already do.
+
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+	\begin{scope}[shift={(current page.south west)}]
+		% Background gradient
+		\shade[top color=bdroxo, bottom color=bdazul, shading angle=-30]
+			(0,0) rectangle (current page.north east);
+
+		% Dot grid, upper right
+		\foreach \x in {0,...,13} {
+			\foreach \y in {0,...,9} {
+				\fill[white, opacity=0.18] ({11.2+0.6*\x},{22.2+0.6*\y}) circle (0.7pt);
+			}
+		}
+
+		% Large database cylinder, the same drawing as the logo
+		\begin{scope}[draw=white, line width=9pt, line cap=round, opacity=0.12]
+			\draw (15.5,19.5) ellipse [x radius=6, y radius=1.9];
+			\draw (9.5,19.5) -- (9.5,9.5)
+				arc[start angle=180, end angle=360, x radius=6, y radius=1.9]
+				-- (21.5,19.5);
+			\draw (9.5,16.2) arc[start angle=180, end angle=360, x radius=6, y radius=1.9];
+			\draw (9.5,12.9) arc[start angle=180, end angle=360, x radius=6, y radius=1.9];
+		\end{scope}
+
+		% Institution
+		\node[anchor=north west, text=white, font=\small] at (2.2,27.2)
+			{\textls[180]{\MakeUppercase{Faculdade de Tecnologia \textperiodcentered{} Unicamp}}};
+
+		% Title block
+		\node[anchor=north west, text=white, text width=13cm, align=left] (titulo) at (2.1,23.2)
+			{\fontsize{46}{50}\selectfont\bfseries Anotações\\de Estudo};
+		\draw[white, line width=1.2pt] ([xshift=1mm, yshift=-6mm]titulo.south west) -- ++(3.5,0);
+		\node[anchor=north west, text=white, text width=11cm, align=left]
+			at ([xshift=1mm, yshift=-1cm]titulo.south west)
+			{\Large\itshape Resumos das disciplinas com complementos da bibliografia\par
+			\vspace{5mm}
+			\normalsize\upshape Especialização em Engenharia e Administração\\
+			de Sistemas de Banco de Dados};
+
+		% Author
+		\node[anchor=south west, text=white, align=left] at (2.2,5.3)
+			{\Large Gabriele Alves};
+
+		% Bottom band with the logos (both images have a white background)
+		\fill[white] (0,0) rectangle (21,3.8);
+		\fill[bdazul] (0,3.8) rectangle (21,3.9);
+		\node[anchor=west] (unicamp) at (2.2,1.9)
+			{\includegraphics[height=2.2cm]{logo-unicamp.jpg}};
+		\draw[bdcinza!40, line width=0.6pt]
+			($(unicamp.east)+(6mm,-9mm)$) -- ++(0,1.8);
+		\node[anchor=west] at ([xshift=12mm]unicamp.east)
+			{\includegraphics[height=1.2cm]{logo-extecamp.png}};
+	\end{scope}
+\end{tikzpicture}
+\end{titlepage}

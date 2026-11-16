@@ -49,6 +49,7 @@ As demais disciplinas estão listadas no prefácio e entram conforme o curso ava
 ```
 main.tex                 documento principal (preâmbulo, capa, ordem das partes)
 main.bib                 referências
+chapters/cover.tex       capa em TikZ
 chapters/preface.tex     prefácio com as disciplinas do curso
 chapters/cet615/         um arquivo por capítulo da CET 615
 images/                  logo e imagens usadas no texto
